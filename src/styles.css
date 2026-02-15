@@ -1,0 +1,141 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.app-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.card {
+  background: white;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.subtitle {
+  margin-top: 0;
+  color: #475569;
+}
+
+.drop-zone {
+  border: 2px dashed #93c5fd;
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  background: #f8fbff;
+}
+
+.drop-zone.dragging {
+  background: #e0ecff;
+  border-color: #3b82f6;
+}
+
+button {
+  border: 1px solid #1d4ed8;
+  background: #2563eb;
+  color: white;
+  border-radius: 8px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.file-summary {
+  margin-top: 1rem;
+}
+
+.encoding-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.encoding-row select {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.3rem 0.45rem;
+  background: white;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.warning {
+  color: #b45309;
+}
+
+.warning-banner {
+  color: #9a3412;
+  background: #ffedd5;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+}
+
+.success-banner {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+}
+
+.session-block {
+  margin-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 1rem;
+}
+
+.small-text {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.table-wrap {
+  overflow: auto;
+}
+
+.summary-table {
+  margin-top: 0.75rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.5rem;
+}
+
+.issue-cell {
+  color: #b45309;
+}
