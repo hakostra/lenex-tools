@@ -96,6 +96,17 @@ to Lenex as follows:
   * `L`: `LCM` (50 meter long course)
 
 
+## About relay entries
+
+In the generated Lenex output, relay age attributes are always written as
+`agemin="-1"`, `agemax="-1"`, `agetotalmin="-1"`, and `agetotalmax="-1"`
+independent of relay class. This is because Swimify ignore these attributes
+at input, and will determine the relay class based on the registred swimmers
+without taking these into account. Therefore also no check of the relay
+class is done, but the class is printed in the summary table for manual
+revision.
+
+
 ## Build and Deployment
 
 This project is a client-only web app (React + TypeScript + Vite) and is
