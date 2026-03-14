@@ -260,6 +260,36 @@ const setAttributes = (element: Element, attributes: Record<string, string | nul
   }
 };
 
+const applyAppConstructorMetadata = (doc: Document) => {
+  const lenexElement = doc.querySelector('LENEX');
+  if (!lenexElement) {
+    throw new Error('Could not find LENEX root element for export.');
+  }
+  lenexElement.setAttribute('version', '3.0');
+
+  let constructorElement = doc.querySelector('LENEX > CONSTRUCTOR');
+  if (!constructorElement) {
+    constructorElement = doc.createElement('CONSTRUCTOR');
+    lenexElement.insertBefore(constructorElement, lenexElement.firstChild);
+  }
+
+  // Reset existing constructor attributes from source files (for example registration).
+  Array.from(constructorElement.attributes).forEach((attribute) => constructorElement.removeAttribute(attribute.name));
+
+  setAttributes(constructorElement, {
+    name: 'UNI_p-to-Lenex',
+    version: '1'
+  });
+
+  constructorElement.replaceChildren();
+  const constructorContact = doc.createElement('CONTACT');
+  setAttributes(constructorContact, {
+    name: 'Håkon Strandenes',
+    email: 'haakon@hakostra.net'
+  });
+  constructorElement.appendChild(constructorContact);
+};
+
 const sanitizeFileName = (value: string) => value.replace(/[^a-zA-Z0-9_-]+/g, '-');
 
 const formatXmlWithIndentation = (xml: string, indentUnit = '  ') => {
@@ -312,6 +342,30 @@ const sanitizeLenexXmlForEntries = (xml: string): string => {
   return serialized.startsWith('<?xml') ? serialized : `<?xml version="1.0" encoding="UTF-8"?>\n${serialized}`;
 };
 
+const stripNonRegistrableEventsFromLenexXml = (xml: string): string => {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  const parserError = doc.querySelector('parsererror');
+  if (parserError) {
+    throw new Error('Could not parse Lenex meet file for filtering.');
+  }
+
+  doc.querySelectorAll('EVENT').forEach((eventElement) => {
+    const round = (eventElement.getAttribute('round') ?? '').trim().toUpperCase();
+    if (forbiddenRegistrationRounds.has(round)) {
+      eventElement.remove();
+    }
+  });
+
+  applyAppConstructorMetadata(doc);
+
+  const serialized = new XMLSerializer().serializeToString(doc).trimStart();
+  const normalized = serialized.startsWith('<?xml')
+    ? serialized.replace(/^<\?xml[^>]*\?>/, '<?xml version="1.0" encoding="UTF-8"?>')
+    : `<?xml version="1.0" encoding="UTF-8"?>\n${serialized}`;
+
+  return formatXmlWithIndentation(normalized, '  ');
+};
+
 const buildLenexEntriesXml = ({
   baseXml,
   clubName,
@@ -335,30 +389,7 @@ const buildLenexEntriesXml = ({
     throw new Error('Could not find MEET element for export.');
   }
 
-  const lenexElement = doc.querySelector('LENEX');
-  if (!lenexElement) {
-    throw new Error('Could not find LENEX root element for export.');
-  }
-  lenexElement.setAttribute('version', '3.0');
-
-  let constructorElement = doc.querySelector('LENEX > CONSTRUCTOR');
-  if (!constructorElement) {
-    constructorElement = doc.createElement('CONSTRUCTOR');
-    lenexElement.insertBefore(constructorElement, lenexElement.firstChild);
-  }
-
-  setAttributes(constructorElement, {
-    name: 'UNI_p-to-Lenex',
-    version: '1'
-  });
-
-  constructorElement.replaceChildren();
-  const constructorContact = doc.createElement('CONTACT');
-  setAttributes(constructorContact, {
-    name: 'Håkon Strandenes',
-    email: 'haakon@hakostra.net'
-  });
-  constructorElement.appendChild(constructorContact);
+  applyAppConstructorMetadata(doc);
 
   let clubsElement = meetElement.querySelector(':scope > CLUBS');
   if (!clubsElement) {
@@ -489,6 +520,7 @@ const App = () => {
   const [lenexSourceXml, setLenexSourceXml] = useState<string | null>(null);
   const [lenexSummary, setLenexSummary] = useState<LenexMeetSummary | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [meetDefinitionError, setMeetDefinitionError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUniPDragging, setIsUniPDragging] = useState(false);
   const [uniPEncoding, setUniPEncoding] = useState<UniPEncoding>('iso-8859-1');
@@ -515,6 +547,7 @@ const App = () => {
     setLenexSourceXml(null);
     setFileName(file.name);
     setDetectedEncoding(null);
+    setMeetDefinitionError(null);
     setUniPFileName(null);
     setUniPClubName(null);
     setUniPRows([]);
@@ -657,6 +690,18 @@ const App = () => {
     return eventsByNumber;
   }, [lenexSummary]);
 
+  const nonRegistrableEventsCount = useMemo(() => {
+    if (!lenexSummary) {
+      return 0;
+    }
+
+    return lenexSummary.sessions.reduce(
+      (total, session) =>
+        total + session.events.filter((event) => forbiddenRegistrationRounds.has(event.round.trim().toUpperCase())).length,
+      0
+    );
+  }, [lenexSummary]);
+
   const mergedIssuesByRowKey = useMemo(() => {
     const map = new Map<string, string[]>();
 
@@ -776,6 +821,35 @@ const App = () => {
     }
   };
 
+  const onDownloadRegistrationMeetClick = () => {
+    setMeetDefinitionError(null);
+
+    if (!lenexSourceXml || !lenexSummary) {
+      setMeetDefinitionError('Upload a Lenex meet definition before downloading a filtered meet file.');
+      return;
+    }
+
+    if (nonRegistrableEventsCount === 0) {
+      return;
+    }
+
+    try {
+      const filteredXml = stripNonRegistrableEventsFromLenexXml(lenexSourceXml);
+      const blob = new Blob([filteredXml], { type: 'application/xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const meetSegment = sanitizeFileName((lenexSummary.name || 'meet').toLowerCase());
+      link.href = url;
+      link.download = `${meetSegment}-registration-events.lef`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setMeetDefinitionError(error instanceof Error ? error.message : 'Could not generate filtered Lenex meet file.');
+    }
+  };
+
   return (
     <main className="app-shell">
       <section className="card">
@@ -871,6 +945,21 @@ const App = () => {
                 </div>
               </article>
             ))}
+          </section>
+
+          <section className="card">
+            <h2>Filtered Lenex meet file</h2>
+            <p className="subtitle">
+              Download a copy of the Lenex meet definition with non-registrable events removed ({' '}
+              <code>FIN</code>, <code>SEM</code>, <code>QUA</code>, <code>SOP</code>, <code>SOS</code>, <code>SOQ</code>).{' '}
+              {nonRegistrableEventsCount > 0
+                ? `${nonRegistrableEventsCount} event${nonRegistrableEventsCount === 1 ? '' : 's'} will be removed.`
+                : 'No such events are present in this meet definition.'}
+            </p>
+            <button type="button" onClick={onDownloadRegistrationMeetClick} disabled={nonRegistrableEventsCount === 0}>
+              Download filtered Lenex meet file
+            </button>
+            {meetDefinitionError && <p className="error">{meetDefinitionError}</p>}
           </section>
 
           <section className="card">
