@@ -184,19 +184,6 @@ const validateRowAgainstLenex = (row: UniPRow, eventsByNumber: Map<string, Lenex
       warnedRounds.forEach((round) => issues.push(`Registration for ${round}`));
     }
 
-    const isJuniorRelay = row.relayCount > 1 && row.ageGroupCode.trim().toLowerCase() === 'junior';
-    if (isJuniorRelay) {
-      const candidatesToCheckJuniorGroup = compatibleCandidates.filter((event) => !forbiddenRegistrationRounds.has(event.round));
-      const juniorGroupCandidates = candidatesToCheckJuniorGroup.length > 0 ? candidatesToCheckJuniorGroup : compatibleCandidates;
-      const hasJuniorAgeGroup = juniorGroupCandidates.some((event) =>
-        event.ageGroups.some((ageGroup) => ageGroup.name.trim().toLowerCase() === 'junior')
-      );
-
-      if (!hasJuniorAgeGroup) {
-        issues.push('Missing JUNIOR age group in Lenex event for junior relay');
-      }
-    }
-
     const candidatesToCheckAge = compatibleCandidates.filter((event) => !forbiddenRegistrationRounds.has(event.round));
     const ageCheckCandidates = candidatesToCheckAge.length > 0 ? candidatesToCheckAge : compatibleCandidates;
     const swimmerAge = getAgeAtEventYear(row, ageCheckCandidates[0]);
@@ -245,50 +232,6 @@ const inferBirthYear = (row: UniPRow): string | null => {
   }
 
   return inferFullYearFromAgeGroup(row.ageGroupCode);
-};
-
-const mastersRelayAgeRangeByClass: Record<string, { min: number; max: number }> = {
-  O: { min: 80, max: 99 },
-  A: { min: 100, max: 119 },
-  B: { min: 120, max: 159 },
-  C: { min: 160, max: 199 },
-  D: { min: 200, max: 239 },
-  E: { min: 240, max: 279 },
-  F: { min: 280, max: 319 },
-  G: { min: 320, max: 359 }
-};
-
-const getMastersRelayAgeTotalRange = (row: UniPRow): { min: string; max: string } | null => {
-  const valuesToCheck = [row.birthYearOrClass, row.ageGroupCode].map((value) => value.trim());
-
-  for (const value of valuesToCheck) {
-    const match = value.match(/^Masters\s+([OA-G])$/i);
-    if (!match) {
-      continue;
-    }
-
-    const classCode = match[1].toUpperCase();
-    const range = mastersRelayAgeRangeByClass[classCode];
-    if (range) {
-      return { min: String(range.min), max: String(range.max) };
-    }
-  }
-
-  return null;
-};
-
-const getJuniorRelayAgeMax = (row: UniPRow, event: LenexEvent): string | null => {
-  const isJuniorRelay = row.relayCount > 1 && row.ageGroupCode.trim().toLowerCase() === 'junior';
-  if (!isJuniorRelay) {
-    return null;
-  }
-
-  const juniorGroup = event.ageGroups.find((ageGroup) => ageGroup.name.trim().toLowerCase() === 'junior');
-  if (!juniorGroup) {
-    return null;
-  }
-
-  return String(juniorGroup.agemax);
 };
 
 const findMatchingLenexEvent = (row: UniPRow, eventsByNumber: Map<string, LenexEvent[]>) => {
@@ -354,13 +297,15 @@ const formatXmlWithIndentation = (xml: string, indentUnit = '  ') => {
   return formatted.join('\n');
 };
 
-const removeEventHeatsFromLenexXml = (xml: string): string => {
+const sanitizeLenexXmlForEntries = (xml: string): string => {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
   const parserError = doc.querySelector('parsererror');
   if (parserError) {
     throw new Error('Could not parse Lenex file.');
   }
 
+  // Remove dynamic race data so exported entries are generated from clean meet definitions.
+  doc.querySelectorAll('EVENT > RESULTS').forEach((resultsElement) => resultsElement.remove());
   doc.querySelectorAll('EVENT > HEATS').forEach((heatsElement) => heatsElement.remove());
 
   const serialized = new XMLSerializer().serializeToString(doc).trimStart();
@@ -378,7 +323,8 @@ const buildLenexEntriesXml = ({
   rows: UniPRow[];
   eventsByNumber: Map<string, LenexEvent[]>;
 }): { xml: string; skippedDuringBuild: number } => {
-  const doc = new DOMParser().parseFromString(baseXml, 'application/xml');
+  const sanitizedBaseXml = sanitizeLenexXmlForEntries(baseXml);
+  const doc = new DOMParser().parseFromString(sanitizedBaseXml, 'application/xml');
   const parserError = doc.querySelector('parsererror');
   if (parserError) {
     throw new Error('Could not parse Lenex meet file for export.');
@@ -465,17 +411,14 @@ const buildLenexEntriesXml = ({
     };
 
     if (row.relayCount > 1) {
-      const mastersRelayAgeTotal = getMastersRelayAgeTotalRange(row);
-      const juniorRelayAgeMax = getJuniorRelayAgeMax(row, lenexEvent);
-
       const relayElement = doc.createElement('RELAY');
       setAttributes(relayElement, {
         number: String(nextRelayNumber),
         name: row.lastName,
         agemin: '-1',
-        agemax: juniorRelayAgeMax ?? '-1',
-        agetotalmin: mastersRelayAgeTotal?.min ?? '-1',
-        agetotalmax: mastersRelayAgeTotal?.max ?? '-1',
+        agemax: '-1',
+        agetotalmin: '-1',
+        agetotalmax: '-1',
         gender: row.gender
       });
       nextRelayNumber += 1;
@@ -582,7 +525,7 @@ const App = () => {
 
     try {
       const { content, encoding } = await decodeXmlFileText(file);
-      const sanitizedContent = removeEventHeatsFromLenexXml(content);
+      const sanitizedContent = sanitizeLenexXmlForEntries(content);
       const parsed = parseLenexMeet(sanitizedContent);
       setLenexSourceXml(sanitizedContent);
       setDetectedEncoding(encoding);

@@ -18,6 +18,8 @@ const genderMap: Record<string, string> = {
 const ageGroupMap: Record<string, string> = {
   JR: 'Junior',
   SR: 'Senior',
+  YJ: 'Yngre junior',
+  EJ: 'Eldre junior',
   MA: 'Masters A',
   MB: 'Masters B',
   MC: 'Masters C',
@@ -126,11 +128,13 @@ const parseBirthYearOrClass = (
   isRelay: boolean,
   ageGroupFromField7: string
 ): { birthYearOrClass: string; issues: string[] } => {
+  if (isRelay) {
+    // For relay rows, field 7 is authoritative for class/category and field 8 is ignored.
+    return { birthYearOrClass: ageGroupFromField7, issues: [] };
+  }
+
   const trimmed = normalizeField(value).toUpperCase();
   if (!trimmed) {
-    if (isRelay) {
-      return { birthYearOrClass: ageGroupFromField7, issues: [] };
-    }
     return { birthYearOrClass: '', issues: ['Field 8 (birth year/class) is missing'] };
   }
 
