@@ -54,3 +54,25 @@ export type UniPParseResult = {
   clubName: string;
   rows: UniPRow[];
 };
+
+export type CsvRecordRow = {
+  lineNumber: number;
+  eventText: string;
+  relayCount: number;
+  distance: number | null;
+  stroke: string;
+  recordTimeRaw: string;
+  recordTimeLenex: string | null;
+  swimmerName: string;
+  clubName: string;
+  recordDate: string | null;
+  place: string;
+  gender: string;
+  poolCourse: 'SCM' | 'LCM' | null;
+  paraClass: string | null;
+  issues: string[];
+};
+
+export type CsvRecordParseResult = {
+  rows: CsvRecordRow[];
+};

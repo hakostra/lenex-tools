@@ -1,15 +1,53 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEventHandler, DragEventHandler } from 'react';
+import { parseMedleyRecordsCsv } from './csvRecordsParser';
 import { parseLenexMeet } from './lenexParser';
+import { buildRecordLenexXml, createRecordListPreview, guessRecordType, makeRecordExportFileName } from './recordsLenexBuilder';
 import { parseUniP } from './unipParser';
-import type { LenexEvent, LenexMeetSummary, UniPRow } from './types';
+import type { CsvRecordRow, LenexEvent, LenexMeetSummary, UniPRow } from './types';
 
 const acceptedFileTypes = '.lef,.xml,text/xml,application/xml';
 const acceptedUniPFileTypes = '.txt,.csv,text/plain';
+const acceptedCsvFileTypes = '.csv,text/csv,text/plain';
 const xmlEncodingPattern = /<\?xml[^>]*encoding=["']([^"']+)["']/i;
 type UniPEncoding = 'iso-8859-1' | 'utf-8';
 
 const sourceRepositoryUrl = 'https://github.com/hakostra/unip-to-lenex';
+
+const medleyRecordSources = [
+  {
+    label: 'Norwegian senior records',
+    href: 'https://www.medley.no/rekorder.aspx?fraaar=1911&basseng=b&kjonn=b&fHC=1&rekordtype=2'
+  },
+  {
+    label: 'Norwegian junior records',
+    href: 'https://www.medley.no/rekorder.aspx?fraaar=1911&basseng=b&kjonn=b&fHC=1&rekordtype=1'
+  }
+];
+
+type ToolId = 'unip-to-lenex' | 'csv-records-to-lenex';
+
+type ToolDefinition = {
+  id: ToolId;
+  label: string;
+  description: string;
+  implemented: boolean;
+};
+
+const availableTools: ToolDefinition[] = [
+  {
+    id: 'unip-to-lenex',
+    label: 'UNI_p to Lenex converter',
+    description: 'Upload Lenex meet setup and UNI_p registrations, validate, and export entries.',
+    implemented: true
+  },
+  {
+    id: 'csv-records-to-lenex',
+    label: 'CSV records to Lenex',
+    description: 'Convert records and result data from CSV sources into Lenex structures.',
+    implemented: true
+  }
+];
 
 const normalizeEncoding = (encoding: string) => encoding.trim().toLowerCase().replace(/_/g, '-');
 
@@ -277,7 +315,7 @@ const applyAppConstructorMetadata = (doc: Document) => {
   Array.from(constructorElement.attributes).forEach((attribute) => constructorElement.removeAttribute(attribute.name));
 
   setAttributes(constructorElement, {
-    name: 'UNI_p-to-Lenex',
+    name: 'lenex-tools',
     version: '1'
   });
 
@@ -514,6 +552,7 @@ const buildLenexEntriesXml = ({
 };
 
 const App = () => {
+  const [activeTool, setActiveTool] = useState<ToolId>('unip-to-lenex');
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [detectedEncoding, setDetectedEncoding] = useState<string | null>(null);
@@ -532,6 +571,18 @@ const App = () => {
   const [conversionError, setConversionError] = useState<string | null>(null);
   const [uniPSourceFile, setUniPSourceFile] = useState<File | null>(null);
   const uniPFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isCsvDragging, setIsCsvDragging] = useState(false);
+  const [csvEncoding, setCsvEncoding] = useState<UniPEncoding>('iso-8859-1');
+  const [csvFileName, setCsvFileName] = useState<string | null>(null);
+  const [csvRows, setCsvRows] = useState<CsvRecordRow[]>([]);
+  const [csvErrorMessage, setCsvErrorMessage] = useState<string | null>(null);
+  const [csvDownloadMessage, setCsvDownloadMessage] = useState<string | null>(null);
+  const [csvRecordTypeLabelInput, setCsvRecordTypeLabelInput] = useState('');
+  const [csvAgeMinInput, setCsvAgeMinInput] = useState('');
+  const [csvAgeMaxInput, setCsvAgeMaxInput] = useState('');
+  const [csvOverridesEdited, setCsvOverridesEdited] = useState(false);
+  const [csvSourceFile, setCsvSourceFile] = useState<File | null>(null);
+  const csvFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const onPickClick = () => {
     fileInputRef.current?.click();
@@ -539,6 +590,10 @@ const App = () => {
 
   const onPickUniPClick = () => {
     uniPFileInputRef.current?.click();
+  };
+
+  const onPickCsvClick = () => {
+    csvFileInputRef.current?.click();
   };
 
   const handleFile = async (file: File) => {
@@ -632,6 +687,76 @@ const App = () => {
 
     await handleUniPFile(file);
   };
+
+  const parseCsvFile = async (file: File, encoding: UniPEncoding) => {
+    const content = await decodePlainTextFile(file, encoding);
+    return parseMedleyRecordsCsv(content);
+  };
+
+  const handleCsvFile = async (file: File) => {
+    setCsvErrorMessage(null);
+    setCsvDownloadMessage(null);
+    setCsvOverridesEdited(false);
+    setCsvFileName(file.name);
+    setCsvRows([]);
+    setCsvSourceFile(file);
+
+    try {
+      const parsed = await parseCsvFile(file, csvEncoding);
+      setCsvRows(parsed.rows);
+    } catch (error) {
+      setCsvErrorMessage(error instanceof Error ? error.message : 'Could not parse CSV file.');
+    }
+  };
+
+  const onCsvDrop: DragEventHandler<HTMLDivElement> = async (event) => {
+    event.preventDefault();
+    setIsCsvDragging(false);
+
+    const file = event.dataTransfer.files.item(0);
+    if (!file) {
+      return;
+    }
+
+    await handleCsvFile(file);
+  };
+
+  const onCsvSelected: ChangeEventHandler<HTMLInputElement> = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    await handleCsvFile(file);
+  };
+
+  useEffect(() => {
+    if (!csvSourceFile) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const reload = async () => {
+      try {
+        const parsed = await parseCsvFile(csvSourceFile, csvEncoding);
+        if (!cancelled) {
+          setCsvErrorMessage(null);
+          setCsvRows(parsed.rows);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCsvErrorMessage(error instanceof Error ? error.message : 'Could not parse CSV file.');
+        }
+      }
+    };
+
+    void reload();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [csvEncoding, csvSourceFile]);
 
   useEffect(() => {
     if (!uniPSourceFile) {
@@ -762,6 +887,58 @@ const App = () => {
     [uniPRows, mergedIssuesByRowKey]
   );
 
+  const csvSummaryText = useMemo(() => {
+    if (csvRows.length === 0) {
+      return 'Upload a CSV file to parse records.';
+    }
+
+    const validRows = csvRows.filter((row) => row.issues.length === 0).length;
+    return `${csvRows.length} rows parsed · ${validRows} valid · ${csvRows.length - validRows} with issues`;
+  }, [csvRows]);
+
+  const validCsvRows = useMemo(() => csvRows.filter((row) => row.issues.length === 0), [csvRows]);
+
+  const csvRecordTypeGuess = useMemo(() => guessRecordType(validCsvRows), [validCsvRows]);
+
+  useEffect(() => {
+    if (csvOverridesEdited) {
+      return;
+    }
+
+    setCsvRecordTypeLabelInput(csvRecordTypeGuess.label);
+    setCsvAgeMinInput(String(csvRecordTypeGuess.ageMin));
+    setCsvAgeMaxInput(String(csvRecordTypeGuess.ageMax));
+  }, [csvRecordTypeGuess, csvOverridesEdited]);
+
+  const csvRecordTypeForExport = useMemo(() => {
+    const parsedAgeMin = Number.parseInt(csvAgeMinInput.trim(), 10);
+    const parsedAgeMax = Number.parseInt(csvAgeMaxInput.trim(), 10);
+
+    const ageMin = Number.isNaN(parsedAgeMin) ? csvRecordTypeGuess.ageMin : parsedAgeMin;
+    const ageMax = Number.isNaN(parsedAgeMax) ? csvRecordTypeGuess.ageMax : parsedAgeMax;
+    const label = csvRecordTypeLabelInput.trim() || csvRecordTypeGuess.label;
+
+    return {
+      label,
+      ageMin,
+      ageMax,
+      typeValue: label
+    };
+  }, [csvAgeMaxInput, csvAgeMinInput, csvRecordTypeGuess, csvRecordTypeLabelInput]);
+
+  const validRowsByPool = useMemo(() => {
+    const scm = validCsvRows.filter((row) => row.poolCourse === 'SCM').length;
+    const lcm = validCsvRows.filter((row) => row.poolCourse === 'LCM').length;
+    return { SCM: scm, LCM: lcm };
+  }, [validCsvRows]);
+
+  const csvRecordListPreviewByPool = useMemo(() => {
+    return {
+      SCM: createRecordListPreview({ rows: validCsvRows, poolCourse: 'SCM', guess: csvRecordTypeForExport }),
+      LCM: createRecordListPreview({ rows: validCsvRows, poolCourse: 'LCM', guess: csvRecordTypeForExport })
+    };
+  }, [validCsvRows, csvRecordTypeForExport]);
+
   const buildTimeLabel = useMemo(() => {
     const parsed = new Date(__APP_BUILD_DATE__);
     if (Number.isNaN(parsed.getTime())) {
@@ -777,6 +954,11 @@ const App = () => {
 
     return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
   }, []);
+
+  const activeToolDefinition = useMemo(
+    () => availableTools.find((tool) => tool.id === activeTool) ?? availableTools[0],
+    [activeTool]
+  );
 
   const onDownloadEntriesClick = () => {
     setConversionError(null);
@@ -850,11 +1032,54 @@ const App = () => {
     }
   };
 
-  return (
-    <main className="app-shell">
+  const onDownloadCsvRecordsClick = (poolCourse: 'SCM' | 'LCM') => {
+    setCsvDownloadMessage(null);
+
+    if (validCsvRows.length === 0) {
+      setCsvDownloadMessage('No valid CSV rows available for export.');
+      return;
+    }
+
+    const rowsForPool = validCsvRows.filter((row) => row.poolCourse === poolCourse);
+    if (rowsForPool.length === 0) {
+      setCsvDownloadMessage(`No valid ${poolCourse === 'SCM' ? '25m' : '50m'} records found in the CSV data.`);
+      return;
+    }
+
+    try {
+      const producedDate = new Date().toISOString().slice(0, 10);
+      const xml = buildRecordLenexXml({
+        rows: validCsvRows,
+        poolCourse,
+        producedDate,
+        guess: csvRecordTypeForExport
+      });
+
+      const fileName = makeRecordExportFileName({
+        guess: csvRecordTypeForExport,
+        poolCourse,
+        producedDate
+      });
+
+      const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setCsvDownloadMessage(error instanceof Error ? error.message : 'Could not generate LENEX record file.');
+    }
+  };
+
+  const renderUniPToLenexTool = () => (
+    <>
       <section className="card">
-        <h1>UNI_p → Lenex Converter</h1>
-        <p className="subtitle">Phase 1: Upload and inspect Lenex meet definition files.</p>
+        <h1>UNI_p to Lenex converter</h1>
+        <p className="subtitle">Upload and inspect Lenex meet definition files.</p>
 
         <div
           className={`drop-zone ${isDragging ? 'dragging' : ''}`}
@@ -1098,7 +1323,7 @@ const App = () => {
       )}
 
       <section className="card">
-        <h2>Source & build</h2>
+        <h2>Source &amp; build</h2>
         <p className="small-text">
           Original source repository:{' '}
           <a href={sourceRepositoryUrl} target="_blank" rel="noreferrer">
@@ -1111,6 +1336,292 @@ const App = () => {
         <p className="small-text">
           Commit: <strong>{__APP_BUILD_COMMIT__}</strong>
         </p>
+      </section>
+    </>
+  );
+
+  const renderCsvRecordsTool = () => (
+    <>
+      <section className="card">
+        <h1>CSV records to Lenex</h1>
+        <p className="subtitle">Download records from Medley, parse CSV, and export pool-specific LENEX record files.</p>
+
+        <div className="link-button-row">
+          {medleyRecordSources.map((source) => (
+            <a key={source.href} href={source.href} target="_blank" rel="noreferrer" className="link-button">
+              {source.label}
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>CSV Upload</h2>
+        <p className="subtitle">Download records from Medley.no as CSV and upload the file here.</p>
+
+        <label className="encoding-row" htmlFor="csv-encoding-select">
+          Text encoding
+          <select id="csv-encoding-select" value={csvEncoding} onChange={(event) => setCsvEncoding(event.target.value as UniPEncoding)}>
+            <option value="iso-8859-1">ISO-8859-1 (default)</option>
+            <option value="utf-8">UTF-8</option>
+          </select>
+        </label>
+
+        <div
+          className={`drop-zone ${isCsvDragging ? 'dragging' : ''}`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsCsvDragging(true);
+          }}
+          onDragLeave={() => setIsCsvDragging(false)}
+          onDrop={onCsvDrop}
+        >
+          <p>Drag and drop your CSV file here</p>
+          <p className="small-text">or</p>
+          <button type="button" onClick={onPickCsvClick}>
+            Choose file
+          </button>
+          <input
+            ref={csvFileInputRef}
+            type="file"
+            accept={acceptedCsvFileTypes}
+            onChange={onCsvSelected}
+            className="hidden-input"
+          />
+        </div>
+
+        <div className="file-summary">
+          <p>
+            <strong>File:</strong> {csvFileName ?? 'No file selected'}
+          </p>
+          <p>
+            <strong>Summary:</strong> {csvSummaryText}
+          </p>
+          <p>
+            <strong>Encoding:</strong> {csvEncoding}
+          </p>
+          <p>
+            <strong>Valid rows by pool:</strong> 25m: {validRowsByPool.SCM} · 50m: {validRowsByPool.LCM}
+          </p>
+        </div>
+
+        {csvErrorMessage && <p className="error">{csvErrorMessage}</p>}
+        {csvDownloadMessage && <p className="warning">{csvDownloadMessage}</p>}
+
+        {csvRows.length > 0 && (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Relay</th>
+                  <th>Dist</th>
+                  <th>Stroke</th>
+                  <th>Time</th>
+                  <th>Name</th>
+                  <th>Club</th>
+                  <th>Date</th>
+                  <th>Place</th>
+                  <th>Gender</th>
+                  <th>Pool</th>
+                  <th>Para</th>
+                  <th>Issues</th>
+                </tr>
+              </thead>
+              <tbody>
+                {csvRows.map((row) => (
+                  <tr key={`${row.lineNumber}-${row.eventText}-${row.swimmerName}`}>
+                    <td>{row.relayCount}</td>
+                    <td>{row.distance ?? ''}</td>
+                    <td>{row.stroke}</td>
+                    <td>{row.recordTimeRaw}</td>
+                    <td>{row.swimmerName}</td>
+                    <td>{row.clubName}</td>
+                    <td>{row.recordDate ?? ''}</td>
+                    <td>{row.place}</td>
+                    <td>{row.gender}</td>
+                    <td>{row.poolCourse ?? ''}</td>
+                    <td>{row.paraClass ?? ''}</td>
+                    <td className={row.issues.length > 0 ? 'issue-cell' : ''}>{row.issues.join('; ')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>Record list presentation</h2>
+        <p className="subtitle">Review or override the guessed record list name and age limits used for export.</p>
+
+        <div className="file-summary">
+          <p>
+            <strong>Guessed record type:</strong> {csvRecordTypeGuess.label}
+          </p>
+          <p>
+            <strong>Guessed age limits:</strong> {csvRecordTypeGuess.ageMin} to {csvRecordTypeGuess.ageMax} years
+          </p>
+        </div>
+
+        <div className="link-button-row">
+          <label className="encoding-row" htmlFor="csv-record-type-label-input">
+            Record list name
+            <input
+              id="csv-record-type-label-input"
+              type="text"
+              value={csvRecordTypeLabelInput}
+              onChange={(event) => {
+                setCsvOverridesEdited(true);
+                setCsvRecordTypeLabelInput(event.target.value);
+              }}
+            />
+          </label>
+          <label className="encoding-row" htmlFor="csv-age-min-input">
+            Min age
+            <input
+              id="csv-age-min-input"
+              type="number"
+              value={csvAgeMinInput}
+              onChange={(event) => {
+                setCsvOverridesEdited(true);
+                setCsvAgeMinInput(event.target.value);
+              }}
+            />
+          </label>
+          <label className="encoding-row" htmlFor="csv-age-max-input">
+            Max age
+            <input
+              id="csv-age-max-input"
+              type="number"
+              value={csvAgeMaxInput}
+              onChange={(event) => {
+                setCsvOverridesEdited(true);
+                setCsvAgeMaxInput(event.target.value);
+              }}
+            />
+          </label>
+        </div>
+
+        <p className="small-text">
+          Effective export settings: <strong>{csvRecordTypeForExport.label}</strong> ({csvRecordTypeForExport.ageMin} to{' '}
+          {csvRecordTypeForExport.ageMax} years)
+        </p>
+
+        {validCsvRows.length > 0 && (
+          <>
+            <h3>Record list summary</h3>
+            <p className="small-text">The tables below mirror the RECORDLIST blocks that will be written to each LENEX file.</p>
+
+            <div className="table-wrap summary-table">
+              <h4>25m file (SCM)</h4>
+              {csvRecordListPreviewByPool.SCM.length === 0 ? (
+                <p className="small-text">No valid 25m records.</p>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>List name</th>
+                      <th>Gender</th>
+                      <th>Para class</th>
+                      <th>Handicap</th>
+                      <th>Records</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvRecordListPreviewByPool.SCM.map((item) => (
+                      <tr key={`scm-${item.key}`}>
+                        <td>{item.listName}</td>
+                        <td>{item.gender}</td>
+                        <td>{item.paraClass ?? ''}</td>
+                        <td>{item.handicap ?? ''}</td>
+                        <td>{item.recordCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="table-wrap summary-table">
+              <h4>50m file (LCM)</h4>
+              {csvRecordListPreviewByPool.LCM.length === 0 ? (
+                <p className="small-text">No valid 50m records.</p>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>List name</th>
+                      <th>Gender</th>
+                      <th>Para class</th>
+                      <th>Handicap</th>
+                      <th>Records</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvRecordListPreviewByPool.LCM.map((item) => (
+                      <tr key={`lcm-${item.key}`}>
+                        <td>{item.listName}</td>
+                        <td>{item.gender}</td>
+                        <td>{item.paraClass ?? ''}</td>
+                        <td>{item.handicap ?? ''}</td>
+                        <td>{item.recordCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </>
+        )}
+
+        <div className="link-button-row csv-download-row">
+          <button type="button" onClick={() => onDownloadCsvRecordsClick('SCM')} disabled={validRowsByPool.SCM === 0}>
+            Download 25m records (SCM)
+          </button>
+          <button type="button" onClick={() => onDownloadCsvRecordsClick('LCM')} disabled={validRowsByPool.LCM === 0}>
+            Download 50m records (LCM)
+          </button>
+        </div>
+      </section>
+    </>
+  );
+
+  const renderUpcomingTool = () => (
+    <section className="card tool-placeholder-card">
+      <h1>{activeToolDefinition.label}</h1>
+      <p className="subtitle">{activeToolDefinition.description}</p>
+      <p className="tool-placeholder-note">
+        This tool is not implemented yet. The app now supports a multi-tool layout, so this slot can be filled with a new
+        converter or Lenex utility in a future update.
+      </p>
+    </section>
+  );
+
+  return (
+    <main className="app-layout">
+      <aside className="tool-menu card">
+        <h2>Lenex toolbox</h2>
+        <p className="small-text">Select an operation from the menu.</p>
+        <nav className="tool-list" aria-label="Tool list">
+          {availableTools.map((tool) => (
+            <button
+              key={tool.id}
+              type="button"
+              className={`tool-item ${tool.id === activeTool ? 'active' : ''}`}
+              onClick={() => setActiveTool(tool.id)}
+              aria-current={tool.id === activeTool ? 'page' : undefined}
+            >
+              <span className="tool-item-label">{tool.label}</span>
+              {!tool.implemented && <span className="tool-item-badge">Coming soon</span>}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <section className="tool-content">
+        {activeTool === 'unip-to-lenex' && renderUniPToLenexTool()}
+        {activeTool === 'csv-records-to-lenex' && renderCsvRecordsTool()}
+        {activeTool !== 'unip-to-lenex' && activeTool !== 'csv-records-to-lenex' && renderUpcomingTool()}
       </section>
     </main>
   );
