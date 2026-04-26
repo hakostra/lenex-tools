@@ -295,6 +295,14 @@ const createRecordElement = (doc: Document, row: CsvRecordRow, poolCourse: PoolC
       lastname,
       gender: row.gender
     });
+
+    const clubElement = doc.createElement('CLUB');
+    setAttributes(clubElement, {
+      nation: 'NOR',
+      name: row.clubName
+    });
+    athleteElement.appendChild(clubElement);
+
     recordElement.appendChild(athleteElement);
   }
 
@@ -304,7 +312,7 @@ const createRecordElement = (doc: Document, row: CsvRecordRow, poolCourse: PoolC
     course: poolCourse,
     date: row.recordDate,
     name: '',
-    nation: 'NOR'
+    nation: ''
   });
   recordElement.appendChild(meetInfoElement);
 
@@ -366,7 +374,6 @@ export const buildRecordLenexXml = ({
       gender,
       handicap,
       name: listName,
-      type: guess.typeValue,
       updated: producedDate
     });
     recordListId += 1;
