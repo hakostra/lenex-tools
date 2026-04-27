@@ -314,6 +314,7 @@ const createRecordElement = (doc: Document, row: CsvRecordRow, poolCourse: PoolC
     name: '',
     nation: ''
   });
+  meetInfoElement.setAttribute('nation', '');
   recordElement.appendChild(meetInfoElement);
 
   return recordElement;

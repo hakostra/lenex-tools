@@ -12,7 +12,7 @@ const acceptedCsvFileTypes = '.csv,text/csv,text/plain';
 const xmlEncodingPattern = /<\?xml[^>]*encoding=["']([^"']+)["']/i;
 type UniPEncoding = 'iso-8859-1' | 'utf-8';
 
-const sourceRepositoryUrl = 'https://github.com/hakostra/unip-to-lenex';
+const sourceRepositoryUrl = 'https://github.com/hakostra/lenex-tools';
 
 const medleyRecordSources = [
   {
@@ -960,6 +960,10 @@ const App = () => {
     [activeTool]
   );
 
+  useEffect(() => {
+    document.title = activeToolDefinition?.label || 'Lenex tools';
+  }, [activeToolDefinition]);
+
   const onDownloadEntriesClick = () => {
     setConversionError(null);
     setConversionWarning(null);
@@ -1344,7 +1348,7 @@ const App = () => {
     <>
       <section className="card">
         <h1>CSV records to Lenex</h1>
-        <p className="subtitle">Download records from Medley, parse CSV, and export pool-specific LENEX record files.</p>
+        <p className="subtitle">Download records from Medley.no, parse CSV, and export pool-specific LENEX record files.</p>
 
         <div className="link-button-row">
           {medleyRecordSources.map((source) => (
@@ -1450,138 +1454,156 @@ const App = () => {
         )}
       </section>
 
+      {csvSourceFile && (
+        <section className="card">
+          <h2>Record list presentation</h2>
+          <p className="subtitle">Review or override the guessed record list name and age limits used for export.</p>
+
+          <div className="file-summary">
+            <p>
+              <strong>Guessed record type:</strong> {csvRecordTypeGuess.label}
+            </p>
+            <p>
+              <strong>Guessed age limits:</strong> {csvRecordTypeGuess.ageMin} to {csvRecordTypeGuess.ageMax} years
+            </p>
+          </div>
+
+          <div className="link-button-row">
+            <label className="encoding-row" htmlFor="csv-record-type-label-input">
+              Record list name
+              <input
+                id="csv-record-type-label-input"
+                type="text"
+                value={csvRecordTypeLabelInput}
+                onChange={(event) => {
+                  setCsvOverridesEdited(true);
+                  setCsvRecordTypeLabelInput(event.target.value);
+                }}
+              />
+            </label>
+            <label className="encoding-row" htmlFor="csv-age-min-input">
+              Min age
+              <input
+                id="csv-age-min-input"
+                type="number"
+                value={csvAgeMinInput}
+                onChange={(event) => {
+                  setCsvOverridesEdited(true);
+                  setCsvAgeMinInput(event.target.value);
+                }}
+              />
+            </label>
+            <label className="encoding-row" htmlFor="csv-age-max-input">
+              Max age
+              <input
+                id="csv-age-max-input"
+                type="number"
+                value={csvAgeMaxInput}
+                onChange={(event) => {
+                  setCsvOverridesEdited(true);
+                  setCsvAgeMaxInput(event.target.value);
+                }}
+              />
+            </label>
+          </div>
+
+          <p className="small-text">
+            Effective export settings: <strong>{csvRecordTypeForExport.label}</strong> ({csvRecordTypeForExport.ageMin} to{' '}
+            {csvRecordTypeForExport.ageMax} years)
+          </p>
+
+          {validCsvRows.length > 0 && (
+            <>
+              <h3>Record list summary</h3>
+              <p className="small-text">The tables below mirror the RECORDLIST blocks that will be written to each LENEX file.</p>
+
+              <div className="table-wrap summary-table">
+                <h4>25m file (SCM)</h4>
+                {csvRecordListPreviewByPool.SCM.length === 0 ? (
+                  <p className="small-text">No valid 25m records.</p>
+                ) : (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>List name</th>
+                        <th>Gender</th>
+                        <th>Para class</th>
+                        <th>Handicap</th>
+                        <th>Records</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvRecordListPreviewByPool.SCM.map((item) => (
+                        <tr key={`scm-${item.key}`}>
+                          <td>{item.listName}</td>
+                          <td>{item.gender}</td>
+                          <td>{item.paraClass ?? ''}</td>
+                          <td>{item.handicap ?? ''}</td>
+                          <td>{item.recordCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              <div className="table-wrap summary-table">
+                <h4>50m file (LCM)</h4>
+                {csvRecordListPreviewByPool.LCM.length === 0 ? (
+                  <p className="small-text">No valid 50m records.</p>
+                ) : (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>List name</th>
+                        <th>Gender</th>
+                        <th>Para class</th>
+                        <th>Handicap</th>
+                        <th>Records</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvRecordListPreviewByPool.LCM.map((item) => (
+                        <tr key={`lcm-${item.key}`}>
+                          <td>{item.listName}</td>
+                          <td>{item.gender}</td>
+                          <td>{item.paraClass ?? ''}</td>
+                          <td>{item.handicap ?? ''}</td>
+                          <td>{item.recordCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
+
+          <div className="link-button-row csv-download-row">
+            <button type="button" onClick={() => onDownloadCsvRecordsClick('SCM')} disabled={validRowsByPool.SCM === 0}>
+              Download 25m records (SCM)
+            </button>
+            <button type="button" onClick={() => onDownloadCsvRecordsClick('LCM')} disabled={validRowsByPool.LCM === 0}>
+              Download 50m records (LCM)
+            </button>
+          </div>
+        </section>
+      )}
+
       <section className="card">
-        <h2>Record list presentation</h2>
-        <p className="subtitle">Review or override the guessed record list name and age limits used for export.</p>
-
-        <div className="file-summary">
-          <p>
-            <strong>Guessed record type:</strong> {csvRecordTypeGuess.label}
-          </p>
-          <p>
-            <strong>Guessed age limits:</strong> {csvRecordTypeGuess.ageMin} to {csvRecordTypeGuess.ageMax} years
-          </p>
-        </div>
-
-        <div className="link-button-row">
-          <label className="encoding-row" htmlFor="csv-record-type-label-input">
-            Record list name
-            <input
-              id="csv-record-type-label-input"
-              type="text"
-              value={csvRecordTypeLabelInput}
-              onChange={(event) => {
-                setCsvOverridesEdited(true);
-                setCsvRecordTypeLabelInput(event.target.value);
-              }}
-            />
-          </label>
-          <label className="encoding-row" htmlFor="csv-age-min-input">
-            Min age
-            <input
-              id="csv-age-min-input"
-              type="number"
-              value={csvAgeMinInput}
-              onChange={(event) => {
-                setCsvOverridesEdited(true);
-                setCsvAgeMinInput(event.target.value);
-              }}
-            />
-          </label>
-          <label className="encoding-row" htmlFor="csv-age-max-input">
-            Max age
-            <input
-              id="csv-age-max-input"
-              type="number"
-              value={csvAgeMaxInput}
-              onChange={(event) => {
-                setCsvOverridesEdited(true);
-                setCsvAgeMaxInput(event.target.value);
-              }}
-            />
-          </label>
-        </div>
-
+        <h2>Source &amp; build</h2>
         <p className="small-text">
-          Effective export settings: <strong>{csvRecordTypeForExport.label}</strong> ({csvRecordTypeForExport.ageMin} to{' '}
-          {csvRecordTypeForExport.ageMax} years)
+          Original source repository:{' '}
+          <a href={sourceRepositoryUrl} target="_blank" rel="noreferrer">
+            {sourceRepositoryUrl}
+          </a>
         </p>
-
-        {validCsvRows.length > 0 && (
-          <>
-            <h3>Record list summary</h3>
-            <p className="small-text">The tables below mirror the RECORDLIST blocks that will be written to each LENEX file.</p>
-
-            <div className="table-wrap summary-table">
-              <h4>25m file (SCM)</h4>
-              {csvRecordListPreviewByPool.SCM.length === 0 ? (
-                <p className="small-text">No valid 25m records.</p>
-              ) : (
-                <table>
-                  <thead>
-                    <tr>
-                      <th>List name</th>
-                      <th>Gender</th>
-                      <th>Para class</th>
-                      <th>Handicap</th>
-                      <th>Records</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {csvRecordListPreviewByPool.SCM.map((item) => (
-                      <tr key={`scm-${item.key}`}>
-                        <td>{item.listName}</td>
-                        <td>{item.gender}</td>
-                        <td>{item.paraClass ?? ''}</td>
-                        <td>{item.handicap ?? ''}</td>
-                        <td>{item.recordCount}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            <div className="table-wrap summary-table">
-              <h4>50m file (LCM)</h4>
-              {csvRecordListPreviewByPool.LCM.length === 0 ? (
-                <p className="small-text">No valid 50m records.</p>
-              ) : (
-                <table>
-                  <thead>
-                    <tr>
-                      <th>List name</th>
-                      <th>Gender</th>
-                      <th>Para class</th>
-                      <th>Handicap</th>
-                      <th>Records</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {csvRecordListPreviewByPool.LCM.map((item) => (
-                      <tr key={`lcm-${item.key}`}>
-                        <td>{item.listName}</td>
-                        <td>{item.gender}</td>
-                        <td>{item.paraClass ?? ''}</td>
-                        <td>{item.handicap ?? ''}</td>
-                        <td>{item.recordCount}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </>
-        )}
-
-        <div className="link-button-row csv-download-row">
-          <button type="button" onClick={() => onDownloadCsvRecordsClick('SCM')} disabled={validRowsByPool.SCM === 0}>
-            Download 25m records (SCM)
-          </button>
-          <button type="button" onClick={() => onDownloadCsvRecordsClick('LCM')} disabled={validRowsByPool.LCM === 0}>
-            Download 50m records (LCM)
-          </button>
-        </div>
+        <p className="small-text">
+          Build time (UTC): <strong>{buildTimeLabel}</strong>
+        </p>
+        <p className="small-text">
+          Commit: <strong>{__APP_BUILD_COMMIT__}</strong>
+        </p>
       </section>
     </>
   );

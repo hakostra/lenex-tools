@@ -11,7 +11,7 @@ Current tools:
 Use at your own risk, and manually verify generated Lenex files.
 
 The tool is deployed to
-[GitHub Pages](https://hakostra.github.io/unip-to-lenex/).
+[GitHub Pages](https://hakostra.github.io/lenex-tools/).
 
 
 ## UNI_p to Lenex converter
