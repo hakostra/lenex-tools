@@ -607,7 +607,7 @@ const App = () => {
         >
           <p>Drag and drop your Lenex file here</p>
           <p className="small-text">or</p>
-          <button type="button" onClick={onPickClick}>
+          <button type="button" className="button" onClick={onPickClick}>
             Choose file
           </button>
           <input
@@ -696,7 +696,12 @@ const App = () => {
                 ? `${nonRegistrableEventsCount} event${nonRegistrableEventsCount === 1 ? '' : 's'} will be removed.`
                 : 'No such events are present in this meet definition.'}
             </p>
-            <button type="button" onClick={onDownloadRegistrationMeetClick} disabled={nonRegistrableEventsCount === 0}>
+            <button
+              type="button"
+              className="button"
+              onClick={onDownloadRegistrationMeetClick}
+              disabled={nonRegistrableEventsCount === 0}
+            >
               Download filtered Lenex meet file
             </button>
             {meetDefinitionError && <p className="error">{meetDefinitionError}</p>}
@@ -706,10 +711,11 @@ const App = () => {
             <h2>UNI_p Upload</h2>
             <p className="subtitle">Upload UNI_p club registration files to parse and verify fields before Lenex export.</p>
 
-            <label className="encoding-row" htmlFor="unip-encoding-select">
+            <label className="field-row" htmlFor="unip-encoding-select">
               Text encoding
               <select
                 id="unip-encoding-select"
+                className="form-control"
                 value={uniPEncoding}
                 onChange={(event) => setUniPEncoding(event.target.value as UniPEncoding)}
               >
@@ -729,7 +735,7 @@ const App = () => {
             >
               <p>Drag and drop your UNI_p file here</p>
               <p className="small-text">or</p>
-              <button type="button" onClick={onPickUniPClick}>
+              <button type="button" className="button" onClick={onPickUniPClick}>
                 Choose file
               </button>
               <input
@@ -826,10 +832,21 @@ const App = () => {
 
           <section className="card">
             <h2>Lenex download</h2>
-            {uniPRows.length > 0 && !uniPHasIssues && <p className="success-banner">UNI_p file passed all checks</p>}
-            {uniPHasIssues && <p className="warning-banner">Given UNI_p file has issues - please fix manually. Entries with issues will not be in the Lenex download.</p>}
+            {uniPRows.length > 0 && !uniPHasIssues && (
+              <p className="banner banner-success">UNI_p file passed all checks</p>
+            )}
+            {uniPHasIssues && (
+              <p className="banner banner-warning">
+                Given UNI_p file has issues - please fix manually. Entries with issues will not be in the Lenex download.
+              </p>
+            )}
 
-            <button type="button" onClick={onDownloadEntriesClick} disabled={!lenexSourceXml || uniPRows.length === 0}>
+            <button
+              type="button"
+              className="button"
+              onClick={onDownloadEntriesClick}
+              disabled={!lenexSourceXml || uniPRows.length === 0}
+            >
               Download Lenex entries
             </button>
           </section>
@@ -861,9 +878,9 @@ const App = () => {
         <h1>CSV records to Lenex</h1>
         <p className="subtitle">Download records from Medley.no, parse CSV, and export pool-specific LENEX record files.</p>
 
-        <div className="link-button-row">
+        <div className="button-row">
           {medleyRecordSources.map((source) => (
-            <a key={source.href} href={source.href} target="_blank" rel="noreferrer" className="link-button">
+            <a key={source.href} href={source.href} target="_blank" rel="noreferrer" className="button button-link">
               {source.label}
             </a>
           ))}
@@ -874,9 +891,14 @@ const App = () => {
         <h2>CSV Upload</h2>
         <p className="subtitle">Download records from Medley.no as CSV and upload the file here.</p>
 
-        <label className="encoding-row" htmlFor="csv-encoding-select">
+        <label className="field-row" htmlFor="csv-encoding-select">
           Text encoding
-          <select id="csv-encoding-select" value={csvEncoding} onChange={(event) => setCsvEncoding(event.target.value as UniPEncoding)}>
+          <select
+            id="csv-encoding-select"
+            className="form-control"
+            value={csvEncoding}
+            onChange={(event) => setCsvEncoding(event.target.value as UniPEncoding)}
+          >
             <option value="iso-8859-1">ISO-8859-1 (default)</option>
             <option value="utf-8">UTF-8</option>
           </select>
@@ -893,7 +915,7 @@ const App = () => {
         >
           <p>Drag and drop your CSV file here</p>
           <p className="small-text">or</p>
-          <button type="button" onClick={onPickCsvClick}>
+          <button type="button" className="button" onClick={onPickCsvClick}>
             Choose file
           </button>
           <input
@@ -979,11 +1001,12 @@ const App = () => {
             </p>
           </div>
 
-          <div className="link-button-row">
-            <label className="encoding-row" htmlFor="csv-record-type-label-input">
+          <div className="button-row">
+            <label className="field-row" htmlFor="csv-record-type-label-input">
               Record list name
               <input
                 id="csv-record-type-label-input"
+                className="form-control"
                 type="text"
                 value={csvRecordTypeLabelInput}
                 onChange={(event) => {
@@ -992,10 +1015,11 @@ const App = () => {
                 }}
               />
             </label>
-            <label className="encoding-row" htmlFor="csv-age-min-input">
+            <label className="field-row" htmlFor="csv-age-min-input">
               Min age
               <input
                 id="csv-age-min-input"
+                className="form-control"
                 type="number"
                 value={csvAgeMinInput}
                 onChange={(event) => {
@@ -1004,10 +1028,11 @@ const App = () => {
                 }}
               />
             </label>
-            <label className="encoding-row" htmlFor="csv-age-max-input">
+            <label className="field-row" htmlFor="csv-age-max-input">
               Max age
               <input
                 id="csv-age-max-input"
+                className="form-control"
                 type="number"
                 value={csvAgeMaxInput}
                 onChange={(event) => {
@@ -1090,11 +1115,21 @@ const App = () => {
             </>
           )}
 
-          <div className="link-button-row csv-download-row">
-            <button type="button" onClick={() => onDownloadCsvRecordsClick('SCM')} disabled={validRowsByPool.SCM === 0}>
+          <div className="button-row csv-download-row">
+            <button
+              type="button"
+              className="button"
+              onClick={() => onDownloadCsvRecordsClick('SCM')}
+              disabled={validRowsByPool.SCM === 0}
+            >
               Download 25m records (SCM)
             </button>
-            <button type="button" onClick={() => onDownloadCsvRecordsClick('LCM')} disabled={validRowsByPool.LCM === 0}>
+            <button
+              type="button"
+              className="button"
+              onClick={() => onDownloadCsvRecordsClick('LCM')}
+              disabled={validRowsByPool.LCM === 0}
+            >
               Download 50m records (LCM)
             </button>
           </div>
@@ -1140,7 +1175,7 @@ const App = () => {
             <button
               key={tool.id}
               type="button"
-              className={`tool-item ${tool.id === activeTool ? 'active' : ''}`}
+              className={`button button-secondary tool-item ${tool.id === activeTool ? 'active' : ''}`}
               onClick={() => setActiveTool(tool.id)}
               aria-current={tool.id === activeTool ? 'page' : undefined}
             >
