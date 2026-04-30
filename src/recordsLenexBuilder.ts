@@ -257,7 +257,7 @@ export const createRecordListPreview = ({
       gender: group.gender,
       paraClass: paraClassLabel,
       handicap: group.handicap,
-      listName: `${guess.label} ${paraClassLabel}`,
+      listName: guess.label,
       recordCount: group.rows.length
     });
   }
@@ -419,11 +419,9 @@ export const buildRecordLenexXml = ({
   });
 
   for (const group of paraGroups) {
-    const paraClassLabel = formatParaClassLabel(group.handicap);
-
     createRecordList({
       gender: group.gender,
-      listName: `${guess.label} ${paraClassLabel}`,
+      listName: guess.label,
       handicap: group.handicap,
       listRows: group.rows
     });
