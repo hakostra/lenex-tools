@@ -1,4 +1,5 @@
 import type { LenexEvent, LenexMeetSummary, LenexSession } from './types';
+import { parseXmlDocument } from './xmlUtils';
 
 const getRequiredAttribute = (element: Element, attributeName: string): string => {
   return element.getAttribute(attributeName) ?? '';
@@ -38,11 +39,7 @@ const parseSession = (sessionElement: Element): LenexSession => {
 };
 
 export const parseLenexMeet = (xmlText: string): LenexMeetSummary => {
-  const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
-  const parserError = doc.querySelector('parsererror');
-  if (parserError) {
-    throw new Error('The uploaded file is not valid XML.');
-  }
+  const doc = parseXmlDocument(xmlText, 'The uploaded file is not valid XML.');
 
   const meetElement = doc.querySelector('LENEX > MEETS > MEET');
   if (!meetElement) {

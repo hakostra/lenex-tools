@@ -1,16 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEventHandler, DragEventHandler } from 'react';
 import { parseMedleyRecordsCsv } from './csvRecordsParser';
+import { decodePlainTextFile, decodeXmlFileText, sanitizeFileName } from './fileUtils';
+import type { TextEncoding } from './fileUtils';
+import { FORBIDDEN_REGISTRATION_ROUND_CODES, FORBIDDEN_REGISTRATION_ROUNDS } from './lenexConstants';
 import { parseLenexMeet } from './lenexParser';
 import { buildRecordLenexXml, createRecordListPreview, guessRecordType, makeRecordExportFileName } from './recordsLenexBuilder';
 import { parseUniP } from './unipParser';
 import type { CsvRecordRow, LenexEvent, LenexMeetSummary, UniPRow } from './types';
+import {
+  applyAppConstructorMetadata,
+  formatXmlWithIndentation,
+  parseXmlDocument,
+  serializeXmlWithUtf8Declaration,
+  setAttributes
+} from './xmlUtils';
 
 const acceptedFileTypes = '.lef,.xml,text/xml,application/xml';
 const acceptedUniPFileTypes = '.txt,.csv,text/plain';
 const acceptedCsvFileTypes = '.csv,text/csv,text/plain';
-const xmlEncodingPattern = /<\?xml[^>]*encoding=["']([^"']+)["']/i;
-type UniPEncoding = 'iso-8859-1' | 'utf-8';
+type UniPEncoding = TextEncoding;
 
 const sourceRepositoryUrl = 'https://github.com/hakostra/lenex-tools';
 
@@ -48,42 +57,6 @@ const availableTools: ToolDefinition[] = [
     implemented: true
   }
 ];
-
-const normalizeEncoding = (encoding: string) => encoding.trim().toLowerCase().replace(/_/g, '-');
-
-const getSupportedEncoding = (declaredEncoding: string | null): 'utf-8' | 'iso-8859-1' => {
-  if (!declaredEncoding) {
-    return 'utf-8';
-  }
-
-  const normalized = normalizeEncoding(declaredEncoding);
-  if (normalized === 'utf-8' || normalized === 'utf8') {
-    return 'utf-8';
-  }
-
-  if (normalized === 'iso-8859-1' || normalized === 'iso8859-1' || normalized === 'latin1' || normalized === 'latin-1') {
-    return 'iso-8859-1';
-  }
-
-  throw new Error(`Unsupported XML encoding "${declaredEncoding}". Supported encodings are UTF-8 and ISO-8859-1.`);
-};
-
-const decodeXmlFileText = async (file: File): Promise<{ content: string; encoding: 'utf-8' | 'iso-8859-1' }> => {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const header = new TextDecoder('iso-8859-1').decode(bytes.slice(0, 512));
-  const declaredEncoding = header.match(xmlEncodingPattern)?.[1] ?? null;
-  const encoding = getSupportedEncoding(declaredEncoding);
-
-  return {
-    content: new TextDecoder(encoding).decode(bytes),
-    encoding
-  };
-};
-
-const decodePlainTextFile = async (file: File, encoding: UniPEncoding): Promise<string> => {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  return new TextDecoder(encoding).decode(bytes);
-};
 
 const inferFullYearFromAgeGroup = (ageGroupCode: string): string | null => {
   const match = ageGroupCode.match(/^Born YY=(\d{2})$/);
@@ -143,8 +116,6 @@ const getRowKey = (row: UniPRow) => `${row.lineNumber}-${row.eventNumber ?? 'x'}
 
 const mergeIssues = (baseIssues: string[], validationIssues: string[]) =>
   Array.from(new Set([...baseIssues, ...validationIssues]));
-
-const forbiddenRegistrationRounds = new Set(['FIN', 'SEM', 'QUA', 'SOP', 'SOS', 'SOQ']);
 
 const getAgeAtEventYear = (row: UniPRow, event: LenexEvent): number | null => {
   if (row.relayCount > 1) {
@@ -214,15 +185,15 @@ const validateRowAgainstLenex = (row: UniPRow, eventsByNumber: Map<string, Lenex
   });
 
   if (compatibleCandidates.length > 0) {
-    const allowedCandidateExists = compatibleCandidates.some((event) => !forbiddenRegistrationRounds.has(event.round));
+    const allowedCandidateExists = compatibleCandidates.some((event) => !FORBIDDEN_REGISTRATION_ROUNDS.has(event.round));
     if (!allowedCandidateExists) {
       const warnedRounds = Array.from(new Set(compatibleCandidates.map((event) => event.round))).filter((round) =>
-        forbiddenRegistrationRounds.has(round)
+        FORBIDDEN_REGISTRATION_ROUNDS.has(round)
       );
       warnedRounds.forEach((round) => issues.push(`Registration for ${round}`));
     }
 
-    const candidatesToCheckAge = compatibleCandidates.filter((event) => !forbiddenRegistrationRounds.has(event.round));
+    const candidatesToCheckAge = compatibleCandidates.filter((event) => !FORBIDDEN_REGISTRATION_ROUNDS.has(event.round));
     const ageCheckCandidates = candidatesToCheckAge.length > 0 ? candidatesToCheckAge : compatibleCandidates;
     const swimmerAge = getAgeAtEventYear(row, ageCheckCandidates[0]);
 
@@ -280,7 +251,7 @@ const findMatchingLenexEvent = (row: UniPRow, eventsByNumber: Map<string, LenexE
   const candidates = eventsByNumber.get(String(row.eventNumber)) ?? [];
   return (
     candidates.find((event) => {
-      const roundAllowed = !forbiddenRegistrationRounds.has(event.round);
+      const roundAllowed = !FORBIDDEN_REGISTRATION_ROUNDS.has(event.round);
       const relayMatches = event.relayCount === row.relayCount;
       const distanceMatches = event.distance === row.distance;
       const strokeMatches = row.stroke ? event.stroke === row.stroke : true;
@@ -290,118 +261,29 @@ const findMatchingLenexEvent = (row: UniPRow, eventsByNumber: Map<string, LenexE
   );
 };
 
-const setAttributes = (element: Element, attributes: Record<string, string | null | undefined>) => {
-  for (const [name, value] of Object.entries(attributes)) {
-    if (value !== undefined && value !== null && value !== '') {
-      element.setAttribute(name, value);
-    }
-  }
-};
-
-const applyAppConstructorMetadata = (doc: Document) => {
-  const lenexElement = doc.querySelector('LENEX');
-  if (!lenexElement) {
-    throw new Error('Could not find LENEX root element for export.');
-  }
-  lenexElement.setAttribute('version', '3.0');
-
-  let constructorElement = doc.querySelector('LENEX > CONSTRUCTOR');
-  if (!constructorElement) {
-    constructorElement = doc.createElement('CONSTRUCTOR');
-    lenexElement.insertBefore(constructorElement, lenexElement.firstChild);
-  }
-
-  // Reset existing constructor attributes from source files (for example registration).
-  Array.from(constructorElement.attributes).forEach((attribute) => constructorElement.removeAttribute(attribute.name));
-
-  setAttributes(constructorElement, {
-    name: 'lenex-tools',
-    version: '1'
-  });
-
-  constructorElement.replaceChildren();
-  const constructorContact = doc.createElement('CONTACT');
-  setAttributes(constructorContact, {
-    name: 'Håkon Strandenes',
-    email: 'haakon@hakostra.net'
-  });
-  constructorElement.appendChild(constructorContact);
-};
-
-const sanitizeFileName = (value: string) => value.replace(/[^a-zA-Z0-9_-]+/g, '-');
-
-const formatXmlWithIndentation = (xml: string, indentUnit = '  ') => {
-  const tokens = xml
-    .replace(/>\s+</g, '><')
-    .replace(/(>)(<)(\/*)/g, '$1\n$2$3')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  let indentLevel = 0;
-  const formatted: string[] = [];
-
-  for (const token of tokens) {
-    const isClosingTag = /^<\//.test(token);
-    const isSelfClosingTag = /\/>$/.test(token);
-    const isXmlDeclaration = /^<\?xml/.test(token);
-    const isComment = /^<!--/.test(token);
-    const isCData = /^<!\[CDATA\[/.test(token);
-    const isDoctype = /^<!DOCTYPE/.test(token);
-
-    if (isClosingTag) {
-      indentLevel = Math.max(indentLevel - 1, 0);
-    }
-
-    const shouldIndent = !isXmlDeclaration;
-    formatted.push(`${shouldIndent ? indentUnit.repeat(indentLevel) : ''}${token}`);
-
-    const isOpeningTag = /^<[^!?/][^>]*>$/.test(token);
-    if (isOpeningTag && !isSelfClosingTag && !isComment && !isCData && !isDoctype) {
-      indentLevel += 1;
-    }
-  }
-
-  return formatted.join('\n');
-};
-
 const sanitizeLenexXmlForEntries = (xml: string): string => {
-  const doc = new DOMParser().parseFromString(xml, 'application/xml');
-  const parserError = doc.querySelector('parsererror');
-  if (parserError) {
-    throw new Error('Could not parse Lenex file.');
-  }
+  const doc = parseXmlDocument(xml, 'Could not parse Lenex file.');
 
   // Remove dynamic race data so exported entries are generated from clean meet definitions.
   doc.querySelectorAll('EVENT > RESULTS').forEach((resultsElement) => resultsElement.remove());
   doc.querySelectorAll('EVENT > HEATS').forEach((heatsElement) => heatsElement.remove());
 
-  const serialized = new XMLSerializer().serializeToString(doc).trimStart();
-  return serialized.startsWith('<?xml') ? serialized : `<?xml version="1.0" encoding="UTF-8"?>\n${serialized}`;
+  return serializeXmlWithUtf8Declaration(doc);
 };
 
 const stripNonRegistrableEventsFromLenexXml = (xml: string): string => {
-  const doc = new DOMParser().parseFromString(xml, 'application/xml');
-  const parserError = doc.querySelector('parsererror');
-  if (parserError) {
-    throw new Error('Could not parse Lenex meet file for filtering.');
-  }
+  const doc = parseXmlDocument(xml, 'Could not parse Lenex meet file for filtering.');
 
   doc.querySelectorAll('EVENT').forEach((eventElement) => {
     const round = (eventElement.getAttribute('round') ?? '').trim().toUpperCase();
-    if (forbiddenRegistrationRounds.has(round)) {
+    if (FORBIDDEN_REGISTRATION_ROUNDS.has(round)) {
       eventElement.remove();
     }
   });
 
   applyAppConstructorMetadata(doc);
 
-  const serialized = new XMLSerializer().serializeToString(doc).trimStart();
-  const normalized = serialized.startsWith('<?xml')
-    ? serialized.replace(/^<\?xml[^>]*\?>/, '<?xml version="1.0" encoding="UTF-8"?>')
-    : `<?xml version="1.0" encoding="UTF-8"?>\n${serialized}`;
-
-  return formatXmlWithIndentation(normalized, '  ');
+  return formatXmlWithIndentation(serializeXmlWithUtf8Declaration(doc), '  ');
 };
 
 const buildLenexEntriesXml = ({
@@ -416,11 +298,7 @@ const buildLenexEntriesXml = ({
   eventsByNumber: Map<string, LenexEvent[]>;
 }): { xml: string; skippedDuringBuild: number } => {
   const sanitizedBaseXml = sanitizeLenexXmlForEntries(baseXml);
-  const doc = new DOMParser().parseFromString(sanitizedBaseXml, 'application/xml');
-  const parserError = doc.querySelector('parsererror');
-  if (parserError) {
-    throw new Error('Could not parse Lenex meet file for export.');
-  }
+  const doc = parseXmlDocument(sanitizedBaseXml, 'Could not parse Lenex meet file for export.');
 
   const meetElement = doc.querySelector('LENEX > MEETS > MEET');
   if (!meetElement) {
@@ -543,11 +421,7 @@ const buildLenexEntriesXml = ({
   clubElement.appendChild(relaysElement);
   clubsElement.appendChild(clubElement);
 
-  const serialized = new XMLSerializer().serializeToString(doc).trimStart();
-  const normalized = serialized.startsWith('<?xml')
-    ? serialized.replace(/^<\?xml[^>]*\?>/, '<?xml version="1.0" encoding="UTF-8"?>')
-    : `<?xml version="1.0" encoding="UTF-8"?>\n${serialized}`;
-  const xml = formatXmlWithIndentation(normalized, '  ');
+  const xml = formatXmlWithIndentation(serializeXmlWithUtf8Declaration(doc), '  ');
   return { xml, skippedDuringBuild };
 };
 
@@ -822,7 +696,7 @@ const App = () => {
 
     return lenexSummary.sessions.reduce(
       (total, session) =>
-        total + session.events.filter((event) => forbiddenRegistrationRounds.has(event.round.trim().toUpperCase())).length,
+        total + session.events.filter((event) => FORBIDDEN_REGISTRATION_ROUNDS.has(event.round.trim().toUpperCase())).length,
       0
     );
   }, [lenexSummary]);
@@ -1180,7 +1054,7 @@ const App = () => {
             <h2>Filtered Lenex meet file</h2>
             <p className="subtitle">
               Download a copy of the Lenex meet definition with non-registrable events removed ({' '}
-              <code>FIN</code>, <code>SEM</code>, <code>QUA</code>, <code>SOP</code>, <code>SOS</code>, <code>SOQ</code>).{' '}
+              <code>{FORBIDDEN_REGISTRATION_ROUND_CODES.join(', ')}</code>).{' '}
               {nonRegistrableEventsCount > 0
                 ? `${nonRegistrableEventsCount} event${nonRegistrableEventsCount === 1 ? '' : 's'} will be removed.`
                 : 'No such events are present in this meet definition.'}

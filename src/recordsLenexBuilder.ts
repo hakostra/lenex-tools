@@ -1,4 +1,11 @@
+import { sanitizeFileName } from './fileUtils';
 import type { CsvRecordRow } from './types';
+import {
+  applyAppConstructorMetadata,
+  formatXmlWithIndentation,
+  serializeXmlWithUtf8Declaration,
+  setAttributes
+} from './xmlUtils';
 
 export type PoolCourse = 'SCM' | 'LCM';
 
@@ -24,51 +31,6 @@ const strokeDisplayName: Record<string, string> = {
   BACK: 'Backstroke',
   FLY: 'Butterfly',
   MEDLEY: 'Medley'
-};
-
-const sanitizeFileName = (value: string) => value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-
-const setAttributes = (element: Element, attributes: Record<string, string | null | undefined>) => {
-  for (const [name, value] of Object.entries(attributes)) {
-    if (value !== undefined && value !== null && value !== '') {
-      element.setAttribute(name, value);
-    }
-  }
-};
-
-const formatXmlWithIndentation = (xml: string, indentUnit = '  ') => {
-  const tokens = xml
-    .replace(/>\s+</g, '><')
-    .replace(/(>)(<)(\/*)/g, '$1\n$2$3')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  let indentLevel = 0;
-  const formatted: string[] = [];
-
-  for (const token of tokens) {
-    const isClosingTag = /^<\//.test(token);
-    const isSelfClosingTag = /\/>$/.test(token);
-    const isXmlDeclaration = /^<\?xml/.test(token);
-    const isComment = /^<!--/.test(token);
-    const isCData = /^<!\[CDATA\[/.test(token);
-    const isDoctype = /^<!DOCTYPE/.test(token);
-
-    if (isClosingTag) {
-      indentLevel = Math.max(indentLevel - 1, 0);
-    }
-
-    const shouldIndent = !isXmlDeclaration;
-    formatted.push(`${shouldIndent ? indentUnit.repeat(indentLevel) : ''}${token}`);
-
-    const isOpeningTag = /^<[^!?/][^>]*>$/.test(token);
-    if (isOpeningTag && !isSelfClosingTag && !isComment && !isCData && !isDoctype) {
-      indentLevel += 1;
-    }
-  }
-
-  return formatted.join('\n');
 };
 
 const parseParaHandicap = (value: string): { classCode: string; handicap: string } | null => {
@@ -334,21 +296,8 @@ export const buildRecordLenexXml = ({
   const doc = document.implementation.createDocument('', '', null);
 
   const lenex = doc.createElement('LENEX');
-  lenex.setAttribute('version', '3.0');
   doc.appendChild(lenex);
-
-  const constructorElement = doc.createElement('CONSTRUCTOR');
-  setAttributes(constructorElement, {
-    name: 'lenex-tools',
-    version: '1'
-  });
-  const contactElement = doc.createElement('CONTACT');
-  setAttributes(contactElement, {
-    name: 'Håkon Strandenes',
-    email: 'haakon@hakostra.net'
-  });
-  constructorElement.appendChild(contactElement);
-  lenex.appendChild(constructorElement);
+  applyAppConstructorMetadata(doc);
 
   const recordListsElement = doc.createElement('RECORDLISTS');
   lenex.appendChild(recordListsElement);
@@ -427,9 +376,7 @@ export const buildRecordLenexXml = ({
     });
   }
 
-  const serialized = new XMLSerializer().serializeToString(doc).trimStart();
-  const withXmlDeclaration = `<?xml version="1.0" encoding="UTF-8"?>\n${serialized}`;
-  return formatXmlWithIndentation(withXmlDeclaration, '  ');
+  return formatXmlWithIndentation(serializeXmlWithUtf8Declaration(doc), '  ');
 };
 
 export const makeRecordExportFileName = ({
