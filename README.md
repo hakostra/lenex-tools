@@ -162,7 +162,7 @@ By default, the tool guesses record list type from parsed rows:
 
 Default age limits:
 
-- Senior: 9 to -1
+- Senior: 11 to -1
 - Junior: 11 to 18
 
 These values can be overridden in the UI before download:
