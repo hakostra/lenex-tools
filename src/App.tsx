@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEventHandler, DragEventHandler } from 'react';
-import { parseMedleyRecordsCsv } from './csvRecordsParser';
+import { isBlockingCsvRecordIssue, parseMedleyRecordsCsv } from './csvRecordsParser';
 import { decodePlainTextFile, decodeXmlFileText, sanitizeFileName } from './fileUtils';
 import type { TextEncoding } from './fileUtils';
 import { FORBIDDEN_REGISTRATION_ROUND_CODES } from './lenexConstants';
@@ -403,11 +403,14 @@ const App = () => {
       return 'Upload a CSV file to parse records.';
     }
 
-    const validRows = csvRows.filter((row) => row.issues.length === 0).length;
+    const validRows = csvRows.filter((row) => !row.issues.some((issue) => isBlockingCsvRecordIssue(issue))).length;
     return `${csvRows.length} rows parsed · ${validRows} valid · ${csvRows.length - validRows} with issues`;
   }, [csvRows]);
 
-  const validCsvRows = useMemo(() => csvRows.filter((row) => row.issues.length === 0), [csvRows]);
+  const validCsvRows = useMemo(
+    () => csvRows.filter((row) => !row.issues.some((issue) => isBlockingCsvRecordIssue(issue))),
+    [csvRows]
+  );
 
   const csvRecordTypeGuess = useMemo(() => guessRecordType(validCsvRows), [validCsvRows]);
 

@@ -1,0 +1,378 @@
+{
+  "Abu Dhabi": {
+    "country": "AE",
+    "nation": "UAE"
+  },
+  "Adelaide": {
+    "country": "AU",
+    "nation": "AUS"
+  },
+  "Alta": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Amiens": {
+    "country": "FR",
+    "nation": "FRA"
+  },
+  "Ankerskogen": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Assen": {
+    "country": "NL",
+    "nation": "NED"
+  },
+  "Athen": {
+    "country": "GR",
+    "nation": "GRE"
+  },
+  "Atlanta": {
+    "country": "US",
+    "nation": "USA"
+  },
+  "Barcelona": {
+    "country": "ES",
+    "nation": "ESP"
+  },
+  "Beijing": {
+    "country": "CN",
+    "nation": "CHN"
+  },
+  "Bergen": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Berlin": {
+    "country": "DE",
+    "nation": "GER"
+  },
+  "Bonn": {
+    "country": "DE",
+    "nation": "GER"
+  },
+  "Braunschweig": {
+    "country": "DE",
+    "nation": "GER"
+  },
+  "Budapest": {
+    "country": "HU",
+    "nation": "HUN"
+  },
+  "Buenos Aires": {
+    "country": "AR",
+    "nation": "ARG"
+  },
+  "Christchurch": {
+    "country": "NZ",
+    "nation": "NZL"
+  },
+  "Den Haag": {
+    "country": "NL",
+    "nation": "NED"
+  },
+  "Doha": {
+    "country": "QA",
+    "nation": "QAT"
+  },
+  "Drammen": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Eindhoven": {
+    "country": "NL",
+    "nation": "NED"
+  },
+  "Esbjerg": {
+    "country": "DK",
+    "nation": "DEN"
+  },
+  "Fredrikstad": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Fukuoka": {
+    "country": "JP",
+    "nation": "JPN"
+  },
+  "Funchal": {
+    "country": "PT",
+    "nation": "POR"
+  },
+  "Geithus": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Glasgow": {
+    "country": "GB",
+    "nation": "GBR"
+  },
+  "Gwangju": {
+    "country": "KR",
+    "nation": "KOR"
+  },
+  "Hamar": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Hangzhou": {
+    "country": "CN",
+    "nation": "CHN"
+  },
+  "Harstad": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Helsingfors": {
+    "country": "FI",
+    "nation": "FIN"
+  },
+  "Herning": {
+    "country": "DK",
+    "nation": "DEN"
+  },
+  "Holmen": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Indianapolis": {
+    "country": "US",
+    "nation": "USA"
+  },
+  "Istanbul": {
+    "country": "TR",
+    "nation": "TUR"
+  },
+  "Kazan": {
+    "country": "RU",
+    "nation": "RUS"
+  },
+  "Kolbotn": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Kolding": {
+    "country": "DK",
+    "nation": "DEN"
+  },
+  "Kongsberg": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Kopervik": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Kristiansand": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "København": {
+    "country": "DK",
+    "nation": "DEN"
+  },
+  "Lambertseter": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Langhus": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Lignano Sabbiadoro": {
+    "country": "IT",
+    "nation": "ITA"
+  },
+  "Linköping": {
+    "country": "SE",
+    "nation": "SWE"
+  },
+  "London": {
+    "country": "GB",
+    "nation": "GBR"
+  },
+  "Lublin": {
+    "country": "PL",
+    "nation": "POL"
+  },
+  "Malta": {
+    "country": "MT",
+    "nation": "MLT"
+  },
+  "Manchester": {
+    "country": "GB",
+    "nation": "GBR"
+  },
+  "Melbourne": {
+    "country": "AU",
+    "nation": "AUS"
+  },
+  "Minneapolis": {
+    "country": "US",
+    "nation": "USA"
+  },
+  "Molde": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Nadderud": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Namsos": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Napoli": {
+    "country": "IT",
+    "nation": "ITA"
+  },
+  "Netanya": {
+    "country": "IL",
+    "nation": "ISR"
+  },
+  "Nordfjordeid": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Oslo": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Otopeni": {
+    "country": "RO",
+    "nation": "ROU"
+  },
+  "Oulu": {
+    "country": "FI",
+    "nation": "FIN"
+  },
+  "Paris": {
+    "country": "FR",
+    "nation": "FRA"
+  },
+  "Perpignan": {
+    "country": "FR",
+    "nation": "FRA"
+  },
+  "Porsgrunn": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Reykjavik": {
+    "country": "IS",
+    "nation": "ISL"
+  },
+  "Rio": {
+    "country": "BR",
+    "nation": "BRA"
+  },
+  "Rio de Janeiro": {
+    "country": "BR",
+    "nation": "BRA"
+  },
+  "Roma": {
+    "country": "IT",
+    "nation": "ITA"
+  },
+  "Rotterdam": {
+    "country": "NL",
+    "nation": "NED"
+  },
+  "Rud": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Sacramento": {
+    "country": "US",
+    "nation": "USA"
+  },
+  "Samorin": {
+    "country": "SK",
+    "nation": "SVK"
+  },
+  "Sandefjord": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Seoul": {
+    "country": "KR",
+    "nation": "KOR"
+  },
+  "Shanghai": {
+    "country": "CN",
+    "nation": "CHN"
+  },
+  "Sheffield": {
+    "country": "GB",
+    "nation": "GBR"
+  },
+  "Singapore": {
+    "country": "SG",
+    "nation": "SGP"
+  },
+  "Skjetten": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Sognsvann": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Stavanger": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Stockholm": {
+    "country": "SE",
+    "nation": "SWE"
+  },
+  "Strasbourg": {
+    "country": "FR",
+    "nation": "FRA"
+  },
+  "Sydney": {
+    "country": "AU",
+    "nation": "AUS"
+  },
+  "Szczecin": {
+    "country": "PL",
+    "nation": "POL"
+  },
+  "Tartu": {
+    "country": "EE",
+    "nation": "EST"
+  },
+  "Tokyo": {
+    "country": "JP",
+    "nation": "JPN"
+  },
+  "Tromsø": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Trondheim": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Tøyen": {
+    "country": "NO",
+    "nation": "NOR"
+  },
+  "Vejle": {
+    "country": "DK",
+    "nation": "DEN"
+  },
+  "Väsby": {
+    "country": "SE",
+    "nation": "SWE"
+  },
+  "Westmont": {
+    "country": "US",
+    "nation": "USA"
+  },
+  "Ålesund": {
+    "country": "NO",
+    "nation": "NOR"
+  }
+}

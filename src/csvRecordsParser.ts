@@ -1,4 +1,5 @@
 import type { CsvRecordParseResult, CsvRecordRow } from './types';
+import cities from './cities.json';
 
 const strokeMap: Record<string, string> = {
   fri: 'FREE',
@@ -25,6 +26,30 @@ const genderMap: Record<string, 'M' | 'F' | 'X'> = {
 const poolMap: Record<string, 'SCM' | 'LCM'> = {
   '25m': 'SCM',
   '50m': 'LCM'
+};
+
+const cityToNationMap = cities as Record<string, { country: string; nation: string }>;
+
+const canonicalCityMap = new Map<string, string>(
+  Object.entries(cityToNationMap).map(([cityName, meta]) => [cityName.trim().toLowerCase(), meta.nation])
+);
+
+export const unknownCityIssuePrefix = 'Unknown city:';
+
+export const isBlockingCsvRecordIssue = (issue: string) => !issue.startsWith(`${unknownCityIssuePrefix} `);
+
+const resolveNationFromCity = (city: string): string | null => {
+  const trimmedCity = normalizeField(city);
+  if (!trimmedCity) {
+    return null;
+  }
+
+  const exact = cityToNationMap[trimmedCity]?.nation;
+  if (exact) {
+    return exact;
+  }
+
+  return canonicalCityMap.get(trimmedCity.toLowerCase()) ?? null;
 };
 
 const normalizeField = (value: string | undefined) => (value ?? '').trim();
@@ -180,6 +205,7 @@ export const parseMedleyRecordsCsv = (content: string): CsvRecordParseResult => 
     const dateInfo = parseRecordDate(dateColumn);
     const gender = genderMap[genderColumn] ?? '';
     const poolCourse = poolMap[poolColumn] ?? null;
+    const meetNation = resolveNationFromCity(place);
 
     const issues: string[] = [...distanceAndStroke.issues, ...timeInfo.issues, ...dateInfo.issues];
 
@@ -193,6 +219,8 @@ export const parseMedleyRecordsCsv = (content: string): CsvRecordParseResult => 
 
     if (!place) {
       issues.push('Place is missing');
+    } else if (!meetNation) {
+      issues.push(`${unknownCityIssuePrefix} ${place}`);
     }
 
     if (!gender) {
@@ -220,6 +248,7 @@ export const parseMedleyRecordsCsv = (content: string): CsvRecordParseResult => 
       clubName,
       recordDate: dateInfo.value,
       place,
+      meetNation,
       gender,
       poolCourse,
       paraClass,

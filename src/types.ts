@@ -67,6 +67,7 @@ export type CsvRecordRow = {
   clubName: string;
   recordDate: string | null;
   place: string;
+  meetNation: string | null;
   gender: string;
   poolCourse: 'SCM' | 'LCM' | null;
   paraClass: string | null;

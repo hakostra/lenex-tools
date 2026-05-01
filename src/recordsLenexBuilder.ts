@@ -1,5 +1,6 @@
 import { sanitizeFileName } from './fileUtils';
 import type { CsvRecordRow } from './types';
+import { isBlockingCsvRecordIssue } from './csvRecordsParser';
 import {
   applyAppConstructorMetadata,
   formatXmlWithIndentation,
@@ -136,7 +137,9 @@ export const guessRecordType = (rows: CsvRecordRow[]): RecordTypeGuess => {
 };
 
 const groupRowsByRecordList = (rows: CsvRecordRow[], poolCourse: PoolCourse) => {
-  const sourceRows = rows.filter((row) => row.poolCourse === poolCourse && row.issues.length === 0);
+  const sourceRows = rows.filter(
+    (row) => row.poolCourse === poolCourse && !row.issues.some((issue) => isBlockingCsvRecordIssue(issue))
+  );
 
   const regularRowsByGender = new Map<string, CsvRecordRow[]>();
   const paraRowsByGenderAndHandicap = new Map<string, ParaRecordGroup>();
@@ -274,9 +277,8 @@ const createRecordElement = (doc: Document, row: CsvRecordRow, poolCourse: PoolC
     course: poolCourse,
     date: row.recordDate,
     name: '',
-    nation: ''
+    nation: row.meetNation
   });
-  meetInfoElement.setAttribute('nation', '');
   recordElement.appendChild(meetInfoElement);
 
   return recordElement;
