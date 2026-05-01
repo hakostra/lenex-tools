@@ -220,6 +220,40 @@ body {
   font: inherit;
 }
 
+.csv-record-settings {
+  max-width: 780px;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.csv-record-settings-row {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.csv-record-settings-row-double {
+  grid-template-columns: minmax(280px, 1fr) minmax(160px, 220px);
+}
+
+.csv-record-settings-row-ages {
+  grid-template-columns: minmax(120px, 180px) minmax(120px, 180px);
+}
+
+.csv-record-settings-row-single {
+  grid-template-columns: minmax(160px, 220px);
+}
+
+.csv-record-settings .field-row {
+  display: grid;
+  align-items: start;
+  gap: 0.3rem;
+  margin-bottom: 0;
+}
+
+.csv-record-settings .field-row .form-control {
+  width: 100%;
+}
+
 .error {
   color: var(--color-danger);
 }
@@ -287,6 +321,12 @@ td {
 
 @media (max-width: 960px) {
   .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .csv-record-settings-row-double,
+  .csv-record-settings-row-ages,
+  .csv-record-settings-row-single {
     grid-template-columns: 1fr;
   }
 

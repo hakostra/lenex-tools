@@ -13,6 +13,7 @@ export type PoolCourse = 'SCM' | 'LCM';
 export type RecordTypeGuess = {
   label: string;
   shortName: string;
+  nation: string;
   ageMin: number;
   ageMax: number;
   typeValue: string;
@@ -124,6 +125,7 @@ export const guessRecordType = (rows: CsvRecordRow[]): RecordTypeGuess => {
     return {
       label: 'Norwegian senior record',
       shortName: 'NR',
+      nation: 'NOR',
       ageMin: 11,
       ageMax: -1,
       typeValue: 'Norwegian senior record'
@@ -133,6 +135,7 @@ export const guessRecordType = (rows: CsvRecordRow[]): RecordTypeGuess => {
   return {
     label: 'Norwegian junior record',
     shortName: 'NJR',
+    nation: 'NOR',
     ageMin: 11,
     ageMax: 18,
     typeValue: 'Norwegian junior record'
@@ -233,7 +236,7 @@ export const createRecordListPreview = ({
   return preview;
 };
 
-const createRecordElement = (doc: Document, row: CsvRecordRow, poolCourse: PoolCourse): Element => {
+const createRecordElement = (doc: Document, row: CsvRecordRow, poolCourse: PoolCourse, recordNation: string): Element => {
   const recordElement = doc.createElement('RECORD');
   setAttributes(recordElement, {
     swimtime: row.recordTimeLenex
@@ -261,12 +264,13 @@ const createRecordElement = (doc: Document, row: CsvRecordRow, poolCourse: PoolC
     setAttributes(athleteElement, {
       firstname,
       lastname,
-      gender: row.gender
+      gender: row.gender,
+      nation: recordNation
     });
 
     const clubElement = doc.createElement('CLUB');
     setAttributes(clubElement, {
-      nation: 'NOR',
+      nation: recordNation,
       name: row.clubName
     });
     athleteElement.appendChild(clubElement);
@@ -344,7 +348,7 @@ export const buildRecordLenexXml = ({
 
     const recordsElement = doc.createElement('RECORDS');
     for (const row of listRows) {
-      recordsElement.appendChild(createRecordElement(doc, row, poolCourse));
+      recordsElement.appendChild(createRecordElement(doc, row, poolCourse, guess.nation));
     }
 
     recordList.appendChild(recordsElement);

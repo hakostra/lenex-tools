@@ -94,6 +94,7 @@ const App = () => {
   const [csvDownloadMessage, setCsvDownloadMessage] = useState<string | null>(null);
   const [csvRecordTypeLabelInput, setCsvRecordTypeLabelInput] = useState('');
   const [csvRecordTypeShortNameInput, setCsvRecordTypeShortNameInput] = useState('');
+  const [csvRecordTypeNationInput, setCsvRecordTypeNationInput] = useState('NOR');
   const [csvAgeMinInput, setCsvAgeMinInput] = useState('');
   const [csvAgeMaxInput, setCsvAgeMaxInput] = useState('');
   const [csvOverridesEdited, setCsvOverridesEdited] = useState(false);
@@ -422,6 +423,7 @@ const App = () => {
 
     setCsvRecordTypeLabelInput(csvRecordTypeGuess.label);
     setCsvRecordTypeShortNameInput(csvRecordTypeGuess.shortName);
+    setCsvRecordTypeNationInput(csvRecordTypeGuess.nation);
     setCsvAgeMinInput(String(csvRecordTypeGuess.ageMin));
     setCsvAgeMaxInput(String(csvRecordTypeGuess.ageMax));
   }, [csvRecordTypeGuess, csvOverridesEdited]);
@@ -434,15 +436,17 @@ const App = () => {
     const ageMax = Number.isNaN(parsedAgeMax) ? csvRecordTypeGuess.ageMax : parsedAgeMax;
     const label = csvRecordTypeLabelInput.trim() || csvRecordTypeGuess.label;
     const shortName = csvRecordTypeShortNameInput.trim() || csvRecordTypeGuess.shortName;
+    const nation = csvRecordTypeNationInput.trim();
 
     return {
       label,
       shortName,
+      nation,
       ageMin,
       ageMax,
       typeValue: label
     };
-  }, [csvAgeMaxInput, csvAgeMinInput, csvRecordTypeGuess, csvRecordTypeLabelInput, csvRecordTypeShortNameInput]);
+  }, [csvAgeMaxInput, csvAgeMinInput, csvRecordTypeGuess, csvRecordTypeLabelInput, csvRecordTypeNationInput, csvRecordTypeShortNameInput]);
 
   const validRowsByPool = useMemo(() => {
     const scm = validCsvRows.filter((row) => row.poolCourse === 'SCM').length;
@@ -997,7 +1001,7 @@ const App = () => {
       {csvSourceFile && (
         <section className="card">
           <h2>Record list presentation</h2>
-          <p className="subtitle">Review or override the guessed record list name and age limits used for export.</p>
+          <p className="subtitle">Review or override the guessed record list name, short name, nation, and age limits used for export.</p>
 
           <div className="file-summary">
             <p>
@@ -1007,69 +1011,93 @@ const App = () => {
               <strong>Guessed short name:</strong> {csvRecordTypeGuess.shortName}
             </p>
             <p>
+              <strong>Guessed nation:</strong> {csvRecordTypeGuess.nation}
+            </p>
+            <p>
               <strong>Guessed age limits:</strong> {csvRecordTypeGuess.ageMin} to {csvRecordTypeGuess.ageMax} years
             </p>
           </div>
 
-          <div className="button-row">
-            <label className="field-row" htmlFor="csv-record-type-label-input">
-              Record list name
-              <input
-                id="csv-record-type-label-input"
-                className="form-control"
-                type="text"
-                value={csvRecordTypeLabelInput}
-                onChange={(event) => {
-                  setCsvOverridesEdited(true);
-                  setCsvRecordTypeLabelInput(event.target.value);
-                }}
-              />
-            </label>
-            <label className="field-row" htmlFor="csv-age-min-input">
-            <label className="field-row" htmlFor="csv-record-type-short-name-input">
-              Short name
-              <input
-                id="csv-record-type-short-name-input"
-                className="form-control"
-                type="text"
-                value={csvRecordTypeShortNameInput}
-                onChange={(event) => {
-                  setCsvOverridesEdited(true);
-                  setCsvRecordTypeShortNameInput(event.target.value);
-                }}
-              />
-            </label>
-            <label className="field-row" htmlFor="csv-age-min-input">
-              Min age
-              <input
-                id="csv-age-min-input"
-                className="form-control"
-                type="number"
-                value={csvAgeMinInput}
-                onChange={(event) => {
-                  setCsvOverridesEdited(true);
-                  setCsvAgeMinInput(event.target.value);
-                }}
-              />
-            </label>
-            <label className="field-row" htmlFor="csv-age-max-input">
-              Max age
-              <input
-                id="csv-age-max-input"
-                className="form-control"
-                type="number"
-                value={csvAgeMaxInput}
-                onChange={(event) => {
-                  setCsvOverridesEdited(true);
-                  setCsvAgeMaxInput(event.target.value);
-                }}
-              />
-            </label>
+          <div className="csv-record-settings">
+            <div className="csv-record-settings-row csv-record-settings-row-double">
+              <label className="field-row" htmlFor="csv-record-type-label-input">
+                Record list name
+                <input
+                  id="csv-record-type-label-input"
+                  className="form-control"
+                  type="text"
+                  value={csvRecordTypeLabelInput}
+                  onChange={(event) => {
+                    setCsvOverridesEdited(true);
+                    setCsvRecordTypeLabelInput(event.target.value);
+                  }}
+                />
+              </label>
+              <label className="field-row" htmlFor="csv-record-type-short-name-input">
+                Short name
+                <input
+                  id="csv-record-type-short-name-input"
+                  className="form-control"
+                  type="text"
+                  value={csvRecordTypeShortNameInput}
+                  onChange={(event) => {
+                    setCsvOverridesEdited(true);
+                    setCsvRecordTypeShortNameInput(event.target.value);
+                  }}
+                />
+              </label>
+            </div>
+
+            <div className="csv-record-settings-row csv-record-settings-row-ages">
+              <label className="field-row" htmlFor="csv-age-min-input">
+                Min age
+                <input
+                  id="csv-age-min-input"
+                  className="form-control"
+                  type="number"
+                  value={csvAgeMinInput}
+                  onChange={(event) => {
+                    setCsvOverridesEdited(true);
+                    setCsvAgeMinInput(event.target.value);
+                  }}
+                />
+              </label>
+              <label className="field-row" htmlFor="csv-age-max-input">
+                Max age
+                <input
+                  id="csv-age-max-input"
+                  className="form-control"
+                  type="number"
+                  value={csvAgeMaxInput}
+                  onChange={(event) => {
+                    setCsvOverridesEdited(true);
+                    setCsvAgeMaxInput(event.target.value);
+                  }}
+                />
+              </label>
+            </div>
+
+            <div className="csv-record-settings-row csv-record-settings-row-single">
+              <label className="field-row" htmlFor="csv-record-type-nation-input">
+                Nation
+                <input
+                  id="csv-record-type-nation-input"
+                  className="form-control"
+                  type="text"
+                  value={csvRecordTypeNationInput}
+                  onChange={(event) => {
+                    setCsvOverridesEdited(true);
+                    setCsvRecordTypeNationInput(event.target.value);
+                  }}
+                />
+              </label>
+            </div>
           </div>
 
           <p className="small-text">
             Effective export settings: <strong>{csvRecordTypeForExport.label}</strong> ({csvRecordTypeForExport.ageMin} to{' '}
-            {csvRecordTypeForExport.ageMax} years), short name: <strong>{csvRecordTypeForExport.shortName}</strong>
+            {csvRecordTypeForExport.ageMax} years), short name: <strong>{csvRecordTypeForExport.shortName}</strong>, nation:{' '}
+            <strong>{csvRecordTypeForExport.nation || '(empty)'}</strong>
           </p>
 
           {validCsvRows.length > 0 && (
