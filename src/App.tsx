@@ -93,6 +93,7 @@ const App = () => {
   const [csvErrorMessage, setCsvErrorMessage] = useState<string | null>(null);
   const [csvDownloadMessage, setCsvDownloadMessage] = useState<string | null>(null);
   const [csvRecordTypeLabelInput, setCsvRecordTypeLabelInput] = useState('');
+  const [csvRecordTypeShortNameInput, setCsvRecordTypeShortNameInput] = useState('');
   const [csvAgeMinInput, setCsvAgeMinInput] = useState('');
   const [csvAgeMaxInput, setCsvAgeMaxInput] = useState('');
   const [csvOverridesEdited, setCsvOverridesEdited] = useState(false);
@@ -420,6 +421,7 @@ const App = () => {
     }
 
     setCsvRecordTypeLabelInput(csvRecordTypeGuess.label);
+    setCsvRecordTypeShortNameInput(csvRecordTypeGuess.shortName);
     setCsvAgeMinInput(String(csvRecordTypeGuess.ageMin));
     setCsvAgeMaxInput(String(csvRecordTypeGuess.ageMax));
   }, [csvRecordTypeGuess, csvOverridesEdited]);
@@ -431,14 +433,16 @@ const App = () => {
     const ageMin = Number.isNaN(parsedAgeMin) ? csvRecordTypeGuess.ageMin : parsedAgeMin;
     const ageMax = Number.isNaN(parsedAgeMax) ? csvRecordTypeGuess.ageMax : parsedAgeMax;
     const label = csvRecordTypeLabelInput.trim() || csvRecordTypeGuess.label;
+    const shortName = csvRecordTypeShortNameInput.trim() || csvRecordTypeGuess.shortName;
 
     return {
       label,
+      shortName,
       ageMin,
       ageMax,
       typeValue: label
     };
-  }, [csvAgeMaxInput, csvAgeMinInput, csvRecordTypeGuess, csvRecordTypeLabelInput]);
+  }, [csvAgeMaxInput, csvAgeMinInput, csvRecordTypeGuess, csvRecordTypeLabelInput, csvRecordTypeShortNameInput]);
 
   const validRowsByPool = useMemo(() => {
     const scm = validCsvRows.filter((row) => row.poolCourse === 'SCM').length;
@@ -1000,6 +1004,9 @@ const App = () => {
               <strong>Guessed record type:</strong> {csvRecordTypeGuess.label}
             </p>
             <p>
+              <strong>Guessed short name:</strong> {csvRecordTypeGuess.shortName}
+            </p>
+            <p>
               <strong>Guessed age limits:</strong> {csvRecordTypeGuess.ageMin} to {csvRecordTypeGuess.ageMax} years
             </p>
           </div>
@@ -1015,6 +1022,20 @@ const App = () => {
                 onChange={(event) => {
                   setCsvOverridesEdited(true);
                   setCsvRecordTypeLabelInput(event.target.value);
+                }}
+              />
+            </label>
+            <label className="field-row" htmlFor="csv-age-min-input">
+            <label className="field-row" htmlFor="csv-record-type-short-name-input">
+              Short name
+              <input
+                id="csv-record-type-short-name-input"
+                className="form-control"
+                type="text"
+                value={csvRecordTypeShortNameInput}
+                onChange={(event) => {
+                  setCsvOverridesEdited(true);
+                  setCsvRecordTypeShortNameInput(event.target.value);
                 }}
               />
             </label>
@@ -1048,7 +1069,7 @@ const App = () => {
 
           <p className="small-text">
             Effective export settings: <strong>{csvRecordTypeForExport.label}</strong> ({csvRecordTypeForExport.ageMin} to{' '}
-            {csvRecordTypeForExport.ageMax} years)
+            {csvRecordTypeForExport.ageMax} years), short name: <strong>{csvRecordTypeForExport.shortName}</strong>
           </p>
 
           {validCsvRows.length > 0 && (

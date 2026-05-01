@@ -12,6 +12,7 @@ export type PoolCourse = 'SCM' | 'LCM';
 
 export type RecordTypeGuess = {
   label: string;
+  shortName: string;
   ageMin: number;
   ageMax: number;
   typeValue: string;
@@ -121,18 +122,20 @@ export const guessRecordType = (rows: CsvRecordRow[]): RecordTypeGuess => {
 
   if (hasParaClass) {
     return {
-      label: 'Norwegian senior records',
+      label: 'Norwegian senior record',
+      shortName: 'NR',
       ageMin: 11,
       ageMax: -1,
-      typeValue: 'Norwegian senior records'
+      typeValue: 'Norwegian senior record'
     };
   }
 
   return {
-    label: 'Norwegian junior records',
+    label: 'Norwegian junior record',
+    shortName: 'NJR',
     ageMin: 11,
     ageMax: 18,
-    typeValue: 'Norwegian junior records'
+    typeValue: 'Norwegian junior record'
   };
 };
 
@@ -326,6 +329,7 @@ export const buildRecordLenexXml = ({
       gender,
       handicap,
       name: listName,
+      'wingrodan.abbreviation': guess.shortName,
       updated: producedDate
     });
     recordListId += 1;

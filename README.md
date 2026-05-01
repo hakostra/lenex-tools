@@ -157,8 +157,8 @@ export.
 
 By default, the tool guesses record list type from parsed rows:
 
-- If any para class exists: `Norwegian senior records`
-- Otherwise: `Norwegian junior records`
+- If any para class exists: `Norwegian senior record`
+- Otherwise: `Norwegian junior record`
 
 Default age limits:
 
@@ -178,13 +178,6 @@ For each pool file (SCM/LCM), the exporter creates:
 
 - one non-para list per gender (`F`, `M`, `X`) when rows exist
 - para lists grouped by gender and handicap number
-
-Para list names always include all three class tags for a handicap number,
-for example:
-
-- `Norwegian senior records S9/SB9/SM9`
-
-even if only one or two subclasses have records.
 
 
 ### CSV export output
