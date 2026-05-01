@@ -270,7 +270,6 @@ const createRecordElement = (doc: Document, row: CsvRecordRow, poolCourse: PoolC
 
     const clubElement = doc.createElement('CLUB');
     setAttributes(clubElement, {
-      nation: recordNation,
       name: row.clubName
     });
     athleteElement.appendChild(clubElement);
