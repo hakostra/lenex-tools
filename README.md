@@ -201,8 +201,8 @@ compatible with GitHub Pages.
 
 ### Prerequisites
 
-- Node.js 20+ (recommended)
-- npm 10+ (recommended)
+- Node.js 24+ (LTS recommended)
+- npm 11+ (recommended)
 
 ### Local development
 
