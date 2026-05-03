@@ -157,7 +157,7 @@ export.
 
 By default, the tool guesses record list type from parsed rows:
 
-- If any para class exists: `Norwegian senior record`
+- If any para class exists: `Norwegian record`
 - Otherwise: `Norwegian junior record`
 
 Default age limits:

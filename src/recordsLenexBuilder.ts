@@ -123,12 +123,12 @@ export const guessRecordType = (rows: CsvRecordRow[]): RecordTypeGuess => {
 
   if (hasParaClass) {
     return {
-      label: 'Norwegian senior record',
+      label: 'Norwegian record',
       shortName: 'NR',
       nation: 'NOR',
       ageMin: 11,
       ageMax: -1,
-      typeValue: 'Norwegian senior record'
+      typeValue: 'Norwegian record'
     };
   }
 
