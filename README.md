@@ -7,6 +7,7 @@ Current tools:
 
 - UNI_p to Lenex converter
 - CSV to Lenex records converter
+- Lenex entry fee calculator
 
 Use at your own risk, and manually verify generated Lenex files.
 
@@ -192,6 +193,27 @@ for example `norwegian-senior-records-scm-2026-04-26.lef`.
 
 All generated Lenex files (both converters) use constructor name
 `lenex-tools`.
+
+
+## Lenex entry fee calculator
+
+This tool calculates payment totals from a Lenex entries file.
+
+Workflow:
+
+1. Upload a Lenex entries file (`.lef`/`.xml`) containing event definitions and club entries.
+2. Set special-rule values:
+   - `X`: swimmers X years and younger
+   - `Y`: flat amount those swimmers should pay
+3. Review payment summary per club and swimmer.
+4. Download the generated payment report as text.
+
+Rules and calculation details:
+
+- Event fee is read from `EVENT > FEE value` and interpreted as 1/100 currency.
+- Entry-based amounts are converted to whole currency by rounding.
+- If swimmer age is `<= X`, amount is overridden to `Y` regardless of entry count.
+- Report is grouped by club and shows swimmer name, birth year, amount, and club total.
 
 
 ## Build and Deployment

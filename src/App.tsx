@@ -3,6 +3,8 @@ import type { ChangeEventHandler, DragEventHandler } from 'react';
 import { isBlockingCsvRecordIssue, parseMedleyRecordsCsv } from './csvRecordsParser';
 import { decodePlainTextFile, decodeXmlFileText, sanitizeFileName } from './fileUtils';
 import type { TextEncoding } from './fileUtils';
+import { calculateLenexPaymentReport, createLenexPaymentReportCsv, createLenexPaymentReportText } from './entryFeeCalculator';
+import type { LenexPaymentReport } from './entryFeeCalculator';
 import { FORBIDDEN_REGISTRATION_ROUND_CODES } from './lenexConstants';
 import { parseLenexMeet } from './lenexParser';
 import {
@@ -42,7 +44,7 @@ const medleyRecordSources = [
   }
 ];
 
-type ToolId = 'unip-to-lenex' | 'csv-records-to-lenex';
+type ToolId = 'unip-to-lenex' | 'csv-records-to-lenex' | 'lenex-entry-fee-calculator';
 
 type ToolDefinition = {
   id: ToolId;
@@ -62,6 +64,12 @@ const availableTools: ToolDefinition[] = [
     id: 'csv-records-to-lenex',
     label: 'CSV records to Lenex',
     description: 'Convert records and result data from CSV sources into Lenex structures.',
+    implemented: true
+  },
+  {
+    id: 'lenex-entry-fee-calculator',
+    label: 'Lenex entry fee calculator',
+    description: 'Read Lenex entries and calculate per-swimmer and per-club payment totals.',
     implemented: true
   }
 ];
@@ -100,6 +108,15 @@ const App = () => {
   const [csvOverridesEdited, setCsvOverridesEdited] = useState(false);
   const [csvSourceFile, setCsvSourceFile] = useState<File | null>(null);
   const csvFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isPaymentDragging, setIsPaymentDragging] = useState(false);
+  const [paymentFileName, setPaymentFileName] = useState<string | null>(null);
+  const [paymentDetectedEncoding, setPaymentDetectedEncoding] = useState<string | null>(null);
+  const [paymentSourceXml, setPaymentSourceXml] = useState<string | null>(null);
+  const [paymentErrorMessage, setPaymentErrorMessage] = useState<string | null>(null);
+  const [paymentAgeLimitInput, setPaymentAgeLimitInput] = useState('10');
+  const [paymentFlatFeeInput, setPaymentFlatFeeInput] = useState('100');
+  const [paymentDownloadMessage, setPaymentDownloadMessage] = useState<string | null>(null);
+  const paymentFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const onPickClick = () => {
     fileInputRef.current?.click();
@@ -111,6 +128,10 @@ const App = () => {
 
   const onPickCsvClick = () => {
     csvFileInputRef.current?.click();
+  };
+
+  const onPickPaymentClick = () => {
+    paymentFileInputRef.current?.click();
   };
 
   const handleFile = async (file: File) => {
@@ -245,6 +266,43 @@ const App = () => {
     }
 
     await handleCsvFile(file);
+  };
+
+  const handlePaymentFile = async (file: File) => {
+    setPaymentErrorMessage(null);
+    setPaymentDownloadMessage(null);
+    setPaymentSourceXml(null);
+    setPaymentFileName(file.name);
+    setPaymentDetectedEncoding(null);
+
+    try {
+      const { content, encoding } = await decodeXmlFileText(file);
+      setPaymentSourceXml(content);
+      setPaymentDetectedEncoding(encoding);
+    } catch (error) {
+      setPaymentErrorMessage(error instanceof Error ? error.message : 'Could not parse Lenex file.');
+    }
+  };
+
+  const onPaymentDrop: DragEventHandler<HTMLDivElement> = async (event) => {
+    event.preventDefault();
+    setIsPaymentDragging(false);
+
+    const file = event.dataTransfer.files.item(0);
+    if (!file) {
+      return;
+    }
+
+    await handlePaymentFile(file);
+  };
+
+  const onPaymentSelected: ChangeEventHandler<HTMLInputElement> = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    await handlePaymentFile(file);
   };
 
   useEffect(() => {
@@ -461,6 +519,51 @@ const App = () => {
     };
   }, [validCsvRows, csvRecordTypeForExport]);
 
+  const paymentAgeLimit = useMemo(() => Number.parseInt(paymentAgeLimitInput.trim(), 10), [paymentAgeLimitInput]);
+  const paymentFlatFee = useMemo(() => Number.parseInt(paymentFlatFeeInput.trim(), 10), [paymentFlatFeeInput]);
+
+  const paymentInputError = useMemo(() => {
+    if (Number.isNaN(paymentAgeLimit) || paymentAgeLimit < 0) {
+      return 'Age limit must be a whole number >= 0.';
+    }
+
+    if (Number.isNaN(paymentFlatFee) || paymentFlatFee < 0) {
+      return 'Flat fee must be a whole number >= 0.';
+    }
+
+    return null;
+  }, [paymentAgeLimit, paymentFlatFee]);
+
+  const paymentCalculation = useMemo<{ report: LenexPaymentReport | null; error: string | null }>(() => {
+    if (!paymentSourceXml || paymentInputError) {
+      return { report: null, error: null };
+    }
+
+    try {
+      return {
+        report: calculateLenexPaymentReport(paymentSourceXml, {
+          youthAgeLimit: paymentAgeLimit,
+          youthFlatFee: paymentFlatFee
+        }),
+        error: null
+      };
+    } catch (error) {
+      return {
+        report: null,
+        error: error instanceof Error ? error.message : 'Could not calculate payment summary.'
+      };
+    }
+  }, [paymentSourceXml, paymentInputError, paymentAgeLimit, paymentFlatFee]);
+
+  const paymentSummaryText = useMemo(() => {
+    if (!paymentCalculation.report) {
+      return 'Upload a Lenex entries file to calculate per-club payments.';
+    }
+
+    const swimmerCount = paymentCalculation.report.clubs.reduce((sum, club) => sum + club.swimmers.length, 0);
+    return `${paymentCalculation.report.clubs.length} clubs · ${swimmerCount} swimmers · total ${paymentCalculation.report.totalAmount}`;
+  }, [paymentCalculation.report]);
+
   const buildTimeLabel = useMemo(() => {
     const parsed = new Date(__APP_BUILD_DATE__);
     if (Number.isNaN(parsed.getTime())) {
@@ -598,6 +701,56 @@ const App = () => {
       URL.revokeObjectURL(url);
     } catch (error) {
       setCsvDownloadMessage(error instanceof Error ? error.message : 'Could not generate LENEX record file.');
+    }
+  };
+
+  const onDownloadPaymentReportClick = () => {
+    setPaymentDownloadMessage(null);
+
+    if (!paymentCalculation.report) {
+      setPaymentDownloadMessage('No calculated report available for download.');
+      return;
+    }
+
+    try {
+      const reportText = createLenexPaymentReportText(paymentCalculation.report);
+      const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const meetSegment = sanitizeFileName((paymentCalculation.report.meetName || 'meet').toLowerCase());
+      link.href = url;
+      link.download = `${meetSegment}-club-payment-report.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setPaymentDownloadMessage(error instanceof Error ? error.message : 'Could not generate payment report download.');
+    }
+  };
+
+  const onDownloadPaymentReportCsvClick = () => {
+    setPaymentDownloadMessage(null);
+
+    if (!paymentCalculation.report) {
+      setPaymentDownloadMessage('No calculated report available for download.');
+      return;
+    }
+
+    try {
+      const reportCsv = createLenexPaymentReportCsv(paymentCalculation.report);
+      const blob = new Blob([`\uFEFF${reportCsv}`], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const meetSegment = sanitizeFileName((paymentCalculation.report.meetName || 'meet').toLowerCase());
+      link.href = url;
+      link.download = `${meetSegment}-club-payment-report.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setPaymentDownloadMessage(error instanceof Error ? error.message : 'Could not generate CSV payment report download.');
     }
   };
 
@@ -1206,6 +1359,184 @@ const App = () => {
     </>
   );
 
+  const renderEntryFeeCalculatorTool = () => (
+    <>
+      <section className="card">
+        <h1>Lenex entry fee calculator</h1>
+        <p className="subtitle">
+          Upload a Lenex entries file and calculate payment per swimmer and club. Fee values in Lenex are interpreted as 1/100
+          of currency and rounded to whole currency units.
+        </p>
+
+        <div
+          className={`drop-zone ${isPaymentDragging ? 'dragging' : ''}`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsPaymentDragging(true);
+          }}
+          onDragLeave={() => setIsPaymentDragging(false)}
+          onDrop={onPaymentDrop}
+        >
+          <p>Drag and drop your Lenex entries file here</p>
+          <p className="small-text">or</p>
+          <button type="button" className="button" onClick={onPickPaymentClick}>
+            Choose file
+          </button>
+          <input
+            ref={paymentFileInputRef}
+            type="file"
+            accept={acceptedFileTypes}
+            onChange={onPaymentSelected}
+            className="hidden-input"
+          />
+        </div>
+
+        <div className="file-summary">
+          <p>
+            <strong>File:</strong> {paymentFileName ?? 'No file selected'}
+          </p>
+          <p>
+            <strong>Summary:</strong> {paymentSummaryText}
+          </p>
+          <p>
+            <strong>Encoding:</strong> {paymentDetectedEncoding ?? 'N/A'}
+          </p>
+        </div>
+
+        {paymentErrorMessage && <p className="error">{paymentErrorMessage}</p>}
+      </section>
+
+      <section className="card">
+        <h2>Special rule</h2>
+        <p className="subtitle">Swimmers at or below the age limit pay only the flat fee, independent of number of entries.</p>
+
+        <div className="button-row">
+          <label className="field-row" htmlFor="payment-age-limit-input">
+            Age limit (years)
+            <input
+              id="payment-age-limit-input"
+              className="form-control"
+              type="number"
+              step="1"
+              min="0"
+              value={paymentAgeLimitInput}
+              onChange={(event) => setPaymentAgeLimitInput(event.target.value)}
+            />
+          </label>
+          <label className="field-row" htmlFor="payment-flat-fee-input">
+            Flat fee
+            <input
+              id="payment-flat-fee-input"
+              className="form-control"
+              type="number"
+              step="1"
+              min="0"
+              value={paymentFlatFeeInput}
+              onChange={(event) => setPaymentFlatFeeInput(event.target.value)}
+            />
+          </label>
+        </div>
+
+        {paymentInputError && <p className="error">{paymentInputError}</p>}
+        {paymentCalculation.error && <p className="error">{paymentCalculation.error}</p>}
+      </section>
+
+      {paymentCalculation.report && (
+        <>
+          <section className="card">
+            <h2>Club payment summary</h2>
+            <p className="small-text">
+              Meet: <strong>{paymentCalculation.report.meetName}</strong> | Age reference year:{' '}
+              <strong>{paymentCalculation.report.ageReferenceYear}</strong>
+            </p>
+
+            {paymentCalculation.report.clubs.map((club) => (
+              <article key={club.clubName} className="session-block">
+                <h3>{club.clubName}</h3>
+                <div className="table-wrap">
+                  <table className="payment-summary-table">
+                    <colgroup>
+                      <col className="payment-col-swimmer" />
+                      <col className="payment-col-birth-year" />
+                      <col className="payment-col-entries" />
+                      <col className="payment-col-amount" />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>Swimmer</th>
+                        <th>Birth year</th>
+                        <th>Entries</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {club.swimmers.map((swimmer) => (
+                        <tr key={`${club.clubName}-${swimmer.athleteId || swimmer.swimmerName}`}>
+                          <td>{swimmer.swimmerName}</td>
+                          <td>{swimmer.birthYear ?? ''}</td>
+                          <td>{swimmer.entryCount}</td>
+                          <td>{swimmer.finalAmount}</td>
+                        </tr>
+                      ))}
+                      {club.relays.map((relay) => (
+                        <tr key={`${club.clubName}-${relay.relayName}`}>
+                          <td>{relay.relayName}</td>
+                          <td></td>
+                          <td>{relay.entryCount}</td>
+                          <td>{relay.amount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p>
+                  <strong>Club total:</strong> {club.totalAmount}
+                </p>
+              </article>
+            ))}
+          </section>
+
+          <section className="card">
+            <h2>Final report</h2>
+            <p>
+              <strong>Grand total:</strong> {paymentCalculation.report.totalAmount}
+            </p>
+
+            {paymentCalculation.report.warnings.length > 0 && (
+              <p className="warning">Calculation completed with {paymentCalculation.report.warnings.length} warning(s).</p>
+            )}
+
+            {paymentDownloadMessage && <p className="warning">{paymentDownloadMessage}</p>}
+            <div className="button-row">
+              <button type="button" className="button" onClick={onDownloadPaymentReportClick}>
+                Download payment report (TXT)
+              </button>
+              <button type="button" className="button button-secondary" onClick={onDownloadPaymentReportCsvClick}>
+                Download payment report (CSV)
+              </button>
+            </div>
+          </section>
+        </>
+      )}
+
+      <section className="card">
+        <h2>Source &amp; build</h2>
+        <p className="small-text">
+          Original source repository:{' '}
+          <a href={sourceRepositoryUrl} target="_blank" rel="noreferrer">
+            {sourceRepositoryUrl}
+          </a>
+        </p>
+        <p className="small-text">
+          Build time (UTC): <strong>{buildTimeLabel}</strong>
+        </p>
+        <p className="small-text">
+          Commit: <strong>{__APP_BUILD_COMMIT__}</strong>
+        </p>
+      </section>
+    </>
+  );
+
   const renderUpcomingTool = () => (
     <section className="card tool-placeholder-card">
       <h1>{activeToolDefinition.label}</h1>
@@ -1241,7 +1572,8 @@ const App = () => {
       <section className="tool-content">
         {activeTool === 'unip-to-lenex' && renderUniPToLenexTool()}
         {activeTool === 'csv-records-to-lenex' && renderCsvRecordsTool()}
-        {activeTool !== 'unip-to-lenex' && activeTool !== 'csv-records-to-lenex' && renderUpcomingTool()}
+        {activeTool === 'lenex-entry-fee-calculator' && renderEntryFeeCalculatorTool()}
+        {activeTool !== 'unip-to-lenex' && activeTool !== 'csv-records-to-lenex' && activeTool !== 'lenex-entry-fee-calculator' && renderUpcomingTool()}
       </section>
     </main>
   );

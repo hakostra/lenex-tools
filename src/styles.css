@@ -308,6 +308,31 @@ table {
   border-collapse: collapse;
 }
 
+.payment-summary-table {
+  table-layout: fixed;
+}
+
+.payment-summary-table .payment-col-swimmer {
+  width: 54%;
+}
+
+.payment-summary-table .payment-col-birth-year {
+  width: 16%;
+}
+
+.payment-summary-table .payment-col-entries {
+  width: 12%;
+}
+
+.payment-summary-table .payment-col-amount {
+  width: 18%;
+}
+
+.payment-summary-table td:first-child,
+.payment-summary-table th:first-child {
+  word-break: break-word;
+}
+
 th,
 td {
   text-align: left;
