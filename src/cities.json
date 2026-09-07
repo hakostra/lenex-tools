@@ -147,6 +147,10 @@
     "country": "RU",
     "nation": "RUS"
   },
+  "Kocaeli": {
+    "country": "TR",
+    "nation": "TUR"
+  },
   "Kolbotn": {
     "country": "NO",
     "nation": "NOR"
@@ -214,6 +218,10 @@
   "Molde": {
     "country": "NO",
     "nation": "NOR"
+  },
+  "München": {
+    "country": "DE",
+    "nation": "GER"
   },
   "Nadderud": {
     "country": "NO",
