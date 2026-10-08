@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { decodeXmlFileText } from './fileUtils';
+import { decodeXmlFileText, downloadFile } from './fileUtils';
+import FileUpload, { acceptedLenexFileTypes } from './FileUpload';
 import { buildMeetSetupXml, competitionTypes, encodeMeetSetupXml, parseMeetSetupSource } from './meetSetupBuilder';
 import type { MeetSetupSource } from './meetSetupBuilder';
 
@@ -14,10 +15,8 @@ const MeetSetupTool = () => {
   const [fileName, setFileName] = useState('');
   const [encoding, setEncoding] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState(initialSettings);
-  const inputRef = useRef<HTMLInputElement>(null);
   const uploadSequence = useRef(0);
 
   const update = (key: keyof typeof settings, value: string) => {
@@ -86,14 +85,10 @@ const MeetSetupTool = () => {
         entryDeadline: settings.entryDeadline,
         lanes: numeric(settings.lanes, 'number of lanes')
       });
-      const url = URL.createObjectURL(new Blob([encodeMeetSetupXml(xml)], { type: 'application/xml;charset=iso-8859-1' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Meetsetup_${fileName.replace(/\.[^.]+$/, '')}.xml`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      downloadFile(
+        new Blob([encodeMeetSetupXml(xml)], { type: 'application/xml;charset=iso-8859-1' }),
+        `Meetsetup_${fileName.replace(/\.[^.]+$/, '')}.xml`
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not generate meetsetup.xml.');
     }
@@ -103,23 +98,7 @@ const MeetSetupTool = () => {
     <div className="meetsetup-tool">
       <section className="card">
         <h1>Lenex to meetsetup.xml</h1>
-        <div className={`drop-zone ${dragging ? 'dragging' : ''}`}
-          onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(event) => {
-            event.preventDefault(); setDragging(false);
-            const file = event.dataTransfer.files.item(0);
-            if (file) void loadFile(file);
-          }}>
-          <button type="button" className="button" onClick={() => inputRef.current?.click()}>Choose Lenex file</button>
-          <input ref={inputRef} className="hidden-input" type="file" accept=".lef,.xml,text/xml,application/xml"
-            aria-label="Lenex meet file"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void loadFile(file);
-              event.target.value = '';
-            }} />
-        </div>
+        <FileUpload accept={acceptedLenexFileTypes} label="Lenex file" onFileSelected={loadFile} />
         <div className="file-summary" aria-live="polite">
           <p><strong>File:</strong> {fileName || 'No file selected'}{loading ? ' (loading)' : ''}</p>
           {encoding && <p><strong>Source encoding:</strong> {encoding}</p>}
@@ -132,34 +111,34 @@ const MeetSetupTool = () => {
         <fieldset className="meetsetup-group">
           <legend>General</legend>
           <div className="meetsetup-fields">
-          <label className="field-row" htmlFor="meetsetup-nsfMeetId">NSF meet ID
-            <input id="meetsetup-nsfMeetId" className="form-control" inputMode="numeric" pattern="[0-9]{1,10}"
-              maxLength={10} required value={settings.nsfMeetId} onChange={(event) => update('nsfMeetId', event.target.value)} />
-          </label>
-          <label className="field-row meetsetup-wide" htmlFor="meetsetup-competitionTypeId">Competition type
-            <select id="meetsetup-competitionTypeId" className="form-control" value={settings.competitionTypeId}
-              onChange={(event) => update('competitionTypeId', event.target.value)}>
-              {competitionTypes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-            </select>
-          </label>
-          <label className="field-row" htmlFor="meetsetup-entryDeadline">Entry deadline (YYYY-MM-DD)
-            <input id="meetsetup-entryDeadline" className="form-control" type="text" placeholder="YYYY-MM-DD"
-              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxLength={10} value={settings.entryDeadline}
-              onChange={(event) => update('entryDeadline', event.target.value)} />
-          </label>
-          {numberField('lanes', 'Number of lanes', { whole: true, min: 1 })}
-          {numberField('oldestJuniorAge', 'Oldest age junior', { age: true })}
+            <label className="field-row" htmlFor="meetsetup-nsfMeetId">NSF meet ID
+              <input id="meetsetup-nsfMeetId" className="form-control" inputMode="numeric" pattern="[0-9]{1,10}"
+                maxLength={10} required value={settings.nsfMeetId} onChange={(event) => update('nsfMeetId', event.target.value)} />
+            </label>
+            <label className="field-row meetsetup-wide" htmlFor="meetsetup-competitionTypeId">Competition type
+              <select id="meetsetup-competitionTypeId" className="form-control" value={settings.competitionTypeId}
+                onChange={(event) => update('competitionTypeId', event.target.value)}>
+                {competitionTypes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+            </label>
+            <label className="field-row" htmlFor="meetsetup-entryDeadline">Entry deadline (YYYY-MM-DD)
+              <input id="meetsetup-entryDeadline" className="form-control" type="text" placeholder="YYYY-MM-DD"
+                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxLength={10} value={settings.entryDeadline}
+                onChange={(event) => update('entryDeadline', event.target.value)} />
+            </label>
+            {numberField('lanes', 'Number of lanes', { whole: true, min: 1 })}
+            {numberField('oldestJuniorAge', 'Oldest age junior', { age: true })}
           </div>
         </fieldset>
         <fieldset className="meetsetup-group">
           <legend>Fees</legend>
           <div className="meetsetup-fields">
-          {numberField('individualFee', 'Individual entry fee (kr)')}
-          {numberField('relayFee', 'Relay entry fee (kr)', { optional: !source?.events.some((row) => !row.skipped && row.event.relayCount > 1) })}
-          {numberField('individualLateFee', 'Late individual fee (kr)', { optional: true, value: individualLateFee })}
-          {numberField('relayLateFee', 'Late relay fee (kr)', { optional: true, value: relayLateFee })}
-          {numberField('flatFeeAgeLimit', 'Flat fee age limit (years)', { age: true })}
-          {numberField('flatFee', 'Flat fee per swimmer (kr)')}
+            {numberField('individualFee', 'Individual entry fee (kr)')}
+            {numberField('relayFee', 'Relay entry fee (kr)', { optional: !source?.events.some((row) => !row.skipped && row.event.relayCount > 1) })}
+            {numberField('individualLateFee', 'Late individual fee (kr)', { optional: true, value: individualLateFee })}
+            {numberField('relayLateFee', 'Late relay fee (kr)', { optional: true, value: relayLateFee })}
+            {numberField('flatFeeAgeLimit', 'Flat fee age limit (years)', { age: true })}
+            {numberField('flatFee', 'Flat fee per swimmer (kr)')}
           </div>
         </fieldset>
         {error && <p className="error" role="alert">{error}</p>}

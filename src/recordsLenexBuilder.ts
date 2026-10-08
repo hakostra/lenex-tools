@@ -61,25 +61,11 @@ const getGenderOrder = (gender: string) => {
   return 9;
 };
 
-const getParaClassOrder = (classCode: string) => {
-  if (/^S(\d+)$/.test(classCode)) {
-    return 0;
-  }
-  if (/^SB(\d+)$/.test(classCode)) {
-    return 1;
-  }
-  if (/^SM(\d+)$/.test(classCode)) {
-    return 2;
-  }
-  return 9;
-};
-
 const formatParaClassLabel = (handicap: string) => `S${handicap}/SB${handicap}/SM${handicap}`;
 
 type ParaRecordGroup = {
   gender: string;
   handicap: string;
-  classCodes: Set<string>;
   rows: CsvRecordRow[];
 };
 
@@ -154,7 +140,6 @@ const groupRowsByRecordList = (rows: CsvRecordRow[], poolCourse: PoolCourse) => 
     if (row.paraClass) {
       const parsedPara = parseParaHandicap(row.paraClass);
       const handicap = parsedPara?.handicap ?? row.paraClass;
-      const classCode = parsedPara?.classCode ?? row.paraClass;
       const key = `${row.gender}|${handicap}`;
 
       const existing = paraRowsByGenderAndHandicap.get(key);
@@ -162,11 +147,9 @@ const groupRowsByRecordList = (rows: CsvRecordRow[], poolCourse: PoolCourse) => 
         paraRowsByGenderAndHandicap.set(key, {
           gender: row.gender,
           handicap,
-          classCodes: new Set([classCode]),
           rows: [row]
         });
       } else {
-        existing.classCodes.add(classCode);
         existing.rows.push(row);
       }
       continue;

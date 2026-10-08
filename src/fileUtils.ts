@@ -47,3 +47,17 @@ export const decodePlainTextFile = async (file: File, encoding: TextEncoding): P
 
 export const sanitizeFileName = (value: string) =>
   value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+
+export const downloadFile = (blob: Blob, fileName: string): void => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  try {
+    document.body.appendChild(link);
+    link.click();
+  } finally {
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+};

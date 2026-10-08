@@ -26,7 +26,6 @@
   --color-success-border: #86efac;
   --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 12px;
   --space-xs: 0.35rem;
   --space-sm: 0.5rem;
   --space-md: 0.75rem;
@@ -54,9 +53,11 @@ body {
   align-items: start;
 }
 
-.tool-content {
+.tool-content,
+.meetsetup-tool {
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-lg);
 }
 
@@ -141,30 +142,6 @@ body {
   font-weight: 600;
 }
 
-.tool-item-badge {
-  display: inline-block;
-  margin-top: 0.35rem;
-  font-size: 0.75rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: 999px;
-  background: var(--color-border-muted);
-  color: #334155;
-}
-
-.tool-item.active .tool-item-badge {
-  background: rgba(255, 255, 255, 0.22);
-  color: #dbeafe;
-}
-
-.tool-placeholder-card h1 {
-  margin-top: 0;
-}
-
-.tool-placeholder-note {
-  margin-bottom: 0;
-  color: var(--color-text-muted);
-}
-
 .button-row {
   display: flex;
   flex-wrap: wrap;
@@ -174,8 +151,24 @@ body {
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-lg);
+}
+
+.card > h1,
+.card > h2 {
+  margin-top: 0;
+}
+
+.app-footer {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-lg);
+  overflow-wrap: anywhere;
+}
+
+.app-footer h2 {
+  margin: 0;
+  font-size: 1rem;
 }
 
 .subtitle {
@@ -185,7 +178,7 @@ body {
 
 .drop-zone {
   border: 2px dashed var(--color-primary-soft-border-hover);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-lg);
   text-align: center;
   background: #f8fbff;
@@ -205,13 +198,16 @@ body {
 }
 
 .field-row {
-  display: inline-flex;
-  align-items: center;
+  display: grid;
+  align-items: start;
   gap: var(--space-sm);
   margin-bottom: 0.75rem;
+  min-width: 0;
 }
 
 .form-control {
+  width: 100%;
+  min-width: 0;
   border: 1px solid var(--color-control-border);
   border-radius: var(--radius-sm);
   padding: 0.3rem 0.45rem;
@@ -243,22 +239,9 @@ body {
   grid-template-columns: minmax(160px, 220px);
 }
 
-.csv-record-settings .field-row {
-  display: grid;
-  align-items: start;
-  gap: 0.3rem;
-  margin-bottom: 0;
-}
-
-.csv-record-settings .field-row .form-control {
-  width: 100%;
-}
-
-.meetsetup-tool {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-lg);
-  min-width: 0;
+.csv-record-settings .field-row,
+.meetsetup-fields .field-row {
+  margin: 0;
 }
 
 .meetsetup-group {
@@ -281,24 +264,8 @@ body {
   margin-bottom: var(--space-xl);
 }
 
-.meetsetup-fields .field-row {
-  display: grid;
-  gap: var(--space-sm);
-  margin: 0;
-  min-width: 0;
-}
-
-.meetsetup-fields .form-control {
-  width: 100%;
-  min-width: 0;
-}
-
 .meetsetup-wide {
   grid-column: 1 / -1;
-}
-
-.meetsetup-settings h2 {
-  margin-top: 0;
 }
 
 @media (max-width: 600px) {

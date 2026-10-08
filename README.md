@@ -45,7 +45,7 @@ Each following line is one entry with these columns:
 5. First name. Mandatory for individuals, optional for relays.
 6. Unknown content, usually empty.
 7. Gender + agegroup/class. Mandatory.
-8. Birth year or class. Optional.
+8. Birth year or class. Mandatory for individuals; ignored for relays.
 9. Qualification time in format `mm:ss.00`. Optional.
 10. Unknown content, usually empty.
 11. Qualification date. Optional.
@@ -151,8 +151,9 @@ Supported values include:
 - Para class: `S1`-`S14`, `SB1`-`SB14`, `SM1`-`SM14`
 - Date: `dd.mm.yyyy` and `00.00.yyyy` (mapped to `yyyy-01-01`)
 
-Rows with parsing/validation issues are shown in the table and excluded from
-export.
+Rows with blocking parsing/validation issues are shown in the table and excluded
+from export. Unknown cities are warnings only: the record remains eligible, but
+its meet nation is omitted.
 
 
 ### Record type guessing and overrides
@@ -207,7 +208,7 @@ Workflow:
    - `X`: swimmers X years and younger
    - `Y`: flat amount those swimmers should pay
 3. Review payment summary per club and swimmer.
-4. Download the generated payment report as text.
+4. Download the generated payment report as text or CSV.
 
 Rules and calculation details:
 
@@ -259,7 +260,7 @@ missing minimum ages, and characters outside ISO-8859-1 prevent export rather
 than silently generating an ambiguous setup. Verify the file in the intended
 registration system before publishing the meet.
 
-Run the converter regression tests with `npm test`.
+Run the regression tests with `npm test`.
 
 
 ## Build and Deployment
@@ -281,6 +282,17 @@ npm run dev
 
 Then open the local URL shown by Vite (usually `http://localhost:5173`).
 
+### Shared code and checks
+
+- [src/FileUpload.tsx](src/FileUpload.tsx) provides the common file picker and
+   drag-and-drop upload control used by every tool.
+- [src/fileUtils.ts](src/fileUtils.ts) centralizes decoding, file-name sanitizing,
+   and downloads, including temporary URL cleanup.
+- [src/styles.css](src/styles.css) defines shared controls and responsive layouts;
+   wide tables scroll within their containers.
+- `npm test` checks conversion behavior and shared file interactions.
+- `npm run build` checks types and unused code before producing the static site.
+
 ### Production build
 
 ```bash
@@ -296,8 +308,9 @@ The generated static site is placed in `dist/`.
 1. Push this repository to GitHub.
 2. In GitHub, go to **Settings → Pages**.
 3. Under **Build and deployment**, choose **Source: GitHub Actions**.
-4. Add a workflow file at `.github/workflows/deploy-pages.yml` that builds
-   with `npm ci` and `npm run build`, then uploads `dist/` and deploys.
+4. The included [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml)
+   workflow installs with `npm ci`, runs `npm test` and `npm run build`, then
+   uploads `dist/` and deploys.
 
 #### Option B: Manual upload
 

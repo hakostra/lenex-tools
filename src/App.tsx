@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEventHandler, DragEventHandler } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { isBlockingCsvRecordIssue, parseMedleyRecordsCsv } from './csvRecordsParser';
-import { decodePlainTextFile, decodeXmlFileText, sanitizeFileName } from './fileUtils';
+import { decodePlainTextFile, decodeXmlFileText, downloadFile, sanitizeFileName } from './fileUtils';
 import type { TextEncoding } from './fileUtils';
 import { calculateLenexPaymentReport, createLenexPaymentReportCsv, createLenexPaymentReportText } from './entryFeeCalculator';
 import type { LenexPaymentReport } from './entryFeeCalculator';
 import { FORBIDDEN_REGISTRATION_ROUND_CODES } from './lenexConstants';
 import { parseLenexMeet } from './lenexParser';
 import MeetSetupTool from './MeetSetupTool';
+import FileUpload, { acceptedLenexFileTypes } from './FileUpload';
 import {
   buildRecordLenexXml,
   createRecordListPreview,
@@ -27,7 +27,6 @@ import {
 import { parseUniP } from './unipParser';
 import type { CsvRecordRow, LenexEvent, LenexMeetSummary, UniPRow } from './types';
 
-const acceptedFileTypes = '.lef,.xml,text/xml,application/xml';
 const acceptedUniPFileTypes = '.txt,.csv,text/plain';
 const acceptedCsvFileTypes = '.csv,text/csv,text/plain';
 type UniPEncoding = TextEncoding;
@@ -51,47 +50,39 @@ type ToolDefinition = {
   id: ToolId;
   label: string;
   description: string;
-  implemented: boolean;
 };
 
 const availableTools: ToolDefinition[] = [
   {
     id: 'lenex-to-meetsetup',
     label: 'Lenex to meetsetup.xml',
-    description: 'Convert a Lenex meet definition to Victoria registration setup.',
-    implemented: true
+    description: 'Convert a Lenex meet definition to Victoria registration setup.'
   },
   {
     id: 'unip-to-lenex',
     label: 'UNI_p to Lenex converter',
-    description: 'Upload Lenex meet setup and UNI_p registrations, validate, and export entries.',
-    implemented: true
+    description: 'Upload Lenex meet setup and UNI_p registrations, validate, and export entries.'
   },
   {
     id: 'csv-records-to-lenex',
     label: 'CSV records to Lenex',
-    description: 'Convert records and result data from CSV sources into Lenex structures.',
-    implemented: true
+    description: 'Convert records and result data from CSV sources into Lenex structures.'
   },
   {
     id: 'lenex-entry-fee-calculator',
     label: 'Lenex entry fee calculator',
-    description: 'Read Lenex entries and calculate per-swimmer and per-club payment totals.',
-    implemented: true
+    description: 'Read Lenex entries and calculate per-swimmer and per-club payment totals.'
   }
 ];
 
 const App = () => {
   const [activeTool, setActiveTool] = useState<ToolId>('lenex-to-meetsetup');
-  const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [detectedEncoding, setDetectedEncoding] = useState<string | null>(null);
   const [lenexSourceXml, setLenexSourceXml] = useState<string | null>(null);
   const [lenexSummary, setLenexSummary] = useState<LenexMeetSummary | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [meetDefinitionError, setMeetDefinitionError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [isUniPDragging, setIsUniPDragging] = useState(false);
   const [uniPEncoding, setUniPEncoding] = useState<UniPEncoding>('iso-8859-1');
   const [uniPFileName, setUniPFileName] = useState<string | null>(null);
   const [uniPClubName, setUniPClubName] = useState<string | null>(null);
@@ -100,8 +91,6 @@ const App = () => {
   const [conversionWarning, setConversionWarning] = useState<string | null>(null);
   const [conversionError, setConversionError] = useState<string | null>(null);
   const [uniPSourceFile, setUniPSourceFile] = useState<File | null>(null);
-  const uniPFileInputRef = useRef<HTMLInputElement | null>(null);
-  const [isCsvDragging, setIsCsvDragging] = useState(false);
   const [csvEncoding, setCsvEncoding] = useState<UniPEncoding>('iso-8859-1');
   const [csvFileName, setCsvFileName] = useState<string | null>(null);
   const [csvRows, setCsvRows] = useState<CsvRecordRow[]>([]);
@@ -114,8 +103,6 @@ const App = () => {
   const [csvAgeMaxInput, setCsvAgeMaxInput] = useState('');
   const [csvOverridesEdited, setCsvOverridesEdited] = useState(false);
   const [csvSourceFile, setCsvSourceFile] = useState<File | null>(null);
-  const csvFileInputRef = useRef<HTMLInputElement | null>(null);
-  const [isPaymentDragging, setIsPaymentDragging] = useState(false);
   const [paymentFileName, setPaymentFileName] = useState<string | null>(null);
   const [paymentDetectedEncoding, setPaymentDetectedEncoding] = useState<string | null>(null);
   const [paymentSourceXml, setPaymentSourceXml] = useState<string | null>(null);
@@ -123,23 +110,6 @@ const App = () => {
   const [paymentAgeLimitInput, setPaymentAgeLimitInput] = useState('10');
   const [paymentFlatFeeInput, setPaymentFlatFeeInput] = useState('100');
   const [paymentDownloadMessage, setPaymentDownloadMessage] = useState<string | null>(null);
-  const paymentFileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const onPickClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const onPickUniPClick = () => {
-    uniPFileInputRef.current?.click();
-  };
-
-  const onPickCsvClick = () => {
-    csvFileInputRef.current?.click();
-  };
-
-  const onPickPaymentClick = () => {
-    paymentFileInputRef.current?.click();
-  };
 
   const handleFile = async (file: File) => {
     setErrorMessage(null);
@@ -168,27 +138,6 @@ const App = () => {
     }
   };
 
-  const onDrop: DragEventHandler<HTMLDivElement> = async (event) => {
-    event.preventDefault();
-    setIsDragging(false);
-
-    const file = event.dataTransfer.files.item(0);
-    if (!file) {
-      return;
-    }
-
-    await handleFile(file);
-  };
-
-  const onFileSelected: ChangeEventHandler<HTMLInputElement> = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    await handleFile(file);
-  };
-
   const parseUniPFile = async (file: File, encoding: UniPEncoding) => {
     const content = await decodePlainTextFile(file, encoding);
     return parseUniP(content);
@@ -212,27 +161,6 @@ const App = () => {
     }
   };
 
-  const onUniPDrop: DragEventHandler<HTMLDivElement> = async (event) => {
-    event.preventDefault();
-    setIsUniPDragging(false);
-
-    const file = event.dataTransfer.files.item(0);
-    if (!file) {
-      return;
-    }
-
-    await handleUniPFile(file);
-  };
-
-  const onUniPSelected: ChangeEventHandler<HTMLInputElement> = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    await handleUniPFile(file);
-  };
-
   const parseCsvFile = async (file: File, encoding: UniPEncoding) => {
     const content = await decodePlainTextFile(file, encoding);
     return parseMedleyRecordsCsv(content);
@@ -254,27 +182,6 @@ const App = () => {
     }
   };
 
-  const onCsvDrop: DragEventHandler<HTMLDivElement> = async (event) => {
-    event.preventDefault();
-    setIsCsvDragging(false);
-
-    const file = event.dataTransfer.files.item(0);
-    if (!file) {
-      return;
-    }
-
-    await handleCsvFile(file);
-  };
-
-  const onCsvSelected: ChangeEventHandler<HTMLInputElement> = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    await handleCsvFile(file);
-  };
-
   const handlePaymentFile = async (file: File) => {
     setPaymentErrorMessage(null);
     setPaymentDownloadMessage(null);
@@ -289,27 +196,6 @@ const App = () => {
     } catch (error) {
       setPaymentErrorMessage(error instanceof Error ? error.message : 'Could not parse Lenex file.');
     }
-  };
-
-  const onPaymentDrop: DragEventHandler<HTMLDivElement> = async (event) => {
-    event.preventDefault();
-    setIsPaymentDragging(false);
-
-    const file = event.dataTransfer.files.item(0);
-    if (!file) {
-      return;
-    }
-
-    await handlePaymentFile(file);
-  };
-
-  const onPaymentSelected: ChangeEventHandler<HTMLInputElement> = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    await handlePaymentFile(file);
   };
 
   useEffect(() => {
@@ -624,16 +510,9 @@ const App = () => {
       }
 
       const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
       const clubSegment = sanitizeFileName((uniPClubName ?? 'club').toLowerCase());
       const meetSegment = sanitizeFileName((lenexSummary.name || 'meet').toLowerCase());
-      link.href = url;
-      link.download = `${meetSegment}-${clubSegment}.lef`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadFile(blob, `${meetSegment}-${clubSegment}.lef`);
     } catch (error) {
       setConversionError(error instanceof Error ? error.message : 'Could not generate Lenex entries file.');
     }
@@ -654,15 +533,8 @@ const App = () => {
     try {
       const filteredXml = stripNonRegistrableEventsFromLenexXml(lenexSourceXml);
       const blob = new Blob([filteredXml], { type: 'application/xml;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
       const meetSegment = sanitizeFileName((lenexSummary.name || 'meet').toLowerCase());
-      link.href = url;
-      link.download = `${meetSegment}-registration-events.lef`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadFile(blob, `${meetSegment}-registration-events.lef`);
     } catch (error) {
       setMeetDefinitionError(error instanceof Error ? error.message : 'Could not generate filtered Lenex meet file.');
     }
@@ -698,14 +570,7 @@ const App = () => {
       });
 
       const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadFile(blob, fileName);
     } catch (error) {
       setCsvDownloadMessage(error instanceof Error ? error.message : 'Could not generate LENEX record file.');
     }
@@ -722,15 +587,8 @@ const App = () => {
     try {
       const reportText = createLenexPaymentReportText(paymentCalculation.report);
       const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
       const meetSegment = sanitizeFileName((paymentCalculation.report.meetName || 'meet').toLowerCase());
-      link.href = url;
-      link.download = `${meetSegment}-club-payment-report.txt`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadFile(blob, `${meetSegment}-club-payment-report.txt`);
     } catch (error) {
       setPaymentDownloadMessage(error instanceof Error ? error.message : 'Could not generate payment report download.');
     }
@@ -747,15 +605,8 @@ const App = () => {
     try {
       const reportCsv = createLenexPaymentReportCsv(paymentCalculation.report);
       const blob = new Blob([`\uFEFF${reportCsv}`], { type: 'text/csv;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
       const meetSegment = sanitizeFileName((paymentCalculation.report.meetName || 'meet').toLowerCase());
-      link.href = url;
-      link.download = `${meetSegment}-club-payment-report.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadFile(blob, `${meetSegment}-club-payment-report.csv`);
     } catch (error) {
       setPaymentDownloadMessage(error instanceof Error ? error.message : 'Could not generate CSV payment report download.');
     }
@@ -767,28 +618,7 @@ const App = () => {
         <h1>UNI_p to Lenex converter</h1>
         <p className="subtitle">Upload and inspect Lenex meet definition files.</p>
 
-        <div
-          className={`drop-zone ${isDragging ? 'dragging' : ''}`}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={onDrop}
-        >
-          <p>Drag and drop your Lenex file here</p>
-          <p className="small-text">or</p>
-          <button type="button" className="button" onClick={onPickClick}>
-            Choose file
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={acceptedFileTypes}
-            onChange={onFileSelected}
-            className="hidden-input"
-          />
-        </div>
+        <FileUpload accept={acceptedLenexFileTypes} label="Lenex file" onFileSelected={handleFile} />
 
         <div className="file-summary">
           <p>
@@ -895,28 +725,7 @@ const App = () => {
               </select>
             </label>
 
-            <div
-              className={`drop-zone ${isUniPDragging ? 'dragging' : ''}`}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsUniPDragging(true);
-              }}
-              onDragLeave={() => setIsUniPDragging(false)}
-              onDrop={onUniPDrop}
-            >
-              <p>Drag and drop your UNI_p file here</p>
-              <p className="small-text">or</p>
-              <button type="button" className="button" onClick={onPickUniPClick}>
-                Choose file
-              </button>
-              <input
-                ref={uniPFileInputRef}
-                type="file"
-                accept={acceptedUniPFileTypes}
-                onChange={onUniPSelected}
-                className="hidden-input"
-              />
-            </div>
+            <FileUpload accept={acceptedUniPFileTypes} label="UNI_p file" onFileSelected={handleUniPFile} />
 
             <div className="file-summary">
               <p>
@@ -1025,21 +834,6 @@ const App = () => {
         </>
       )}
 
-      <section className="card">
-        <h2>Source &amp; build</h2>
-        <p className="small-text">
-          Original source repository:{' '}
-          <a href={sourceRepositoryUrl} target="_blank" rel="noreferrer">
-            {sourceRepositoryUrl}
-          </a>
-        </p>
-        <p className="small-text">
-          Build time (UTC): <strong>{buildTimeLabel}</strong>
-        </p>
-        <p className="small-text">
-          Commit: <strong>{__APP_BUILD_COMMIT__}</strong>
-        </p>
-      </section>
     </>
   );
 
@@ -1075,28 +869,7 @@ const App = () => {
           </select>
         </label>
 
-        <div
-          className={`drop-zone ${isCsvDragging ? 'dragging' : ''}`}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setIsCsvDragging(true);
-          }}
-          onDragLeave={() => setIsCsvDragging(false)}
-          onDrop={onCsvDrop}
-        >
-          <p>Drag and drop your CSV file here</p>
-          <p className="small-text">or</p>
-          <button type="button" className="button" onClick={onPickCsvClick}>
-            Choose file
-          </button>
-          <input
-            ref={csvFileInputRef}
-            type="file"
-            accept={acceptedCsvFileTypes}
-            onChange={onCsvSelected}
-            className="hidden-input"
-          />
-        </div>
+        <FileUpload accept={acceptedCsvFileTypes} label="CSV file" onFileSelected={handleCsvFile} />
 
         <div className="file-summary">
           <p>
@@ -1265,65 +1038,37 @@ const App = () => {
               <h3>Record list summary</h3>
               <p className="small-text">The tables below mirror the RECORDLIST blocks that will be written to each LENEX file.</p>
 
-              <div className="table-wrap summary-table">
-                <h4>25m file (SCM)</h4>
-                {csvRecordListPreviewByPool.SCM.length === 0 ? (
-                  <p className="small-text">No valid 25m records.</p>
-                ) : (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>List name</th>
-                        <th>Gender</th>
-                        <th>Para class</th>
-                        <th>Handicap</th>
-                        <th>Records</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {csvRecordListPreviewByPool.SCM.map((item) => (
-                        <tr key={`scm-${item.key}`}>
-                          <td>{item.listName}</td>
-                          <td>{item.gender}</td>
-                          <td>{item.paraClass ?? ''}</td>
-                          <td>{item.handicap ?? ''}</td>
-                          <td>{item.recordCount}</td>
+              {(['SCM', 'LCM'] as const).map((poolCourse) => (
+                <div key={poolCourse} className="table-wrap summary-table">
+                  <h4>{poolCourse === 'SCM' ? '25m' : '50m'} file ({poolCourse})</h4>
+                  {csvRecordListPreviewByPool[poolCourse].length === 0 ? (
+                    <p className="small-text">No valid {poolCourse === 'SCM' ? '25m' : '50m'} records.</p>
+                  ) : (
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>List name</th>
+                          <th>Gender</th>
+                          <th>Para class</th>
+                          <th>Handicap</th>
+                          <th>Records</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-
-              <div className="table-wrap summary-table">
-                <h4>50m file (LCM)</h4>
-                {csvRecordListPreviewByPool.LCM.length === 0 ? (
-                  <p className="small-text">No valid 50m records.</p>
-                ) : (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>List name</th>
-                        <th>Gender</th>
-                        <th>Para class</th>
-                        <th>Handicap</th>
-                        <th>Records</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {csvRecordListPreviewByPool.LCM.map((item) => (
-                        <tr key={`lcm-${item.key}`}>
-                          <td>{item.listName}</td>
-                          <td>{item.gender}</td>
-                          <td>{item.paraClass ?? ''}</td>
-                          <td>{item.handicap ?? ''}</td>
-                          <td>{item.recordCount}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+                      </thead>
+                      <tbody>
+                        {csvRecordListPreviewByPool[poolCourse].map((item) => (
+                          <tr key={item.key}>
+                            <td>{item.listName}</td>
+                            <td>{item.gender}</td>
+                            <td>{item.paraClass ?? ''}</td>
+                            <td>{item.handicap ?? ''}</td>
+                            <td>{item.recordCount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ))}
             </>
           )}
 
@@ -1348,21 +1093,6 @@ const App = () => {
         </section>
       )}
 
-      <section className="card">
-        <h2>Source &amp; build</h2>
-        <p className="small-text">
-          Original source repository:{' '}
-          <a href={sourceRepositoryUrl} target="_blank" rel="noreferrer">
-            {sourceRepositoryUrl}
-          </a>
-        </p>
-        <p className="small-text">
-          Build time (UTC): <strong>{buildTimeLabel}</strong>
-        </p>
-        <p className="small-text">
-          Commit: <strong>{__APP_BUILD_COMMIT__}</strong>
-        </p>
-      </section>
     </>
   );
 
@@ -1375,28 +1105,7 @@ const App = () => {
           of currency and rounded to whole currency units.
         </p>
 
-        <div
-          className={`drop-zone ${isPaymentDragging ? 'dragging' : ''}`}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setIsPaymentDragging(true);
-          }}
-          onDragLeave={() => setIsPaymentDragging(false)}
-          onDrop={onPaymentDrop}
-        >
-          <p>Drag and drop your Lenex entries file here</p>
-          <p className="small-text">or</p>
-          <button type="button" className="button" onClick={onPickPaymentClick}>
-            Choose file
-          </button>
-          <input
-            ref={paymentFileInputRef}
-            type="file"
-            accept={acceptedFileTypes}
-            onChange={onPaymentSelected}
-            className="hidden-input"
-          />
-        </div>
+        <FileUpload accept={acceptedLenexFileTypes} label="Lenex entries file" onFileSelected={handlePaymentFile} />
 
         <div className="file-summary">
           <p>
@@ -1526,33 +1235,7 @@ const App = () => {
         </>
       )}
 
-      <section className="card">
-        <h2>Source &amp; build</h2>
-        <p className="small-text">
-          Original source repository:{' '}
-          <a href={sourceRepositoryUrl} target="_blank" rel="noreferrer">
-            {sourceRepositoryUrl}
-          </a>
-        </p>
-        <p className="small-text">
-          Build time (UTC): <strong>{buildTimeLabel}</strong>
-        </p>
-        <p className="small-text">
-          Commit: <strong>{__APP_BUILD_COMMIT__}</strong>
-        </p>
-      </section>
     </>
-  );
-
-  const renderUpcomingTool = () => (
-    <section className="card tool-placeholder-card">
-      <h1>{activeToolDefinition.label}</h1>
-      <p className="subtitle">{activeToolDefinition.description}</p>
-      <p className="tool-placeholder-note">
-        This tool is not implemented yet. The app now supports a multi-tool layout, so this slot can be filled with a new
-        converter or Lenex utility in a future update.
-      </p>
-    </section>
   );
 
   return (
@@ -1568,9 +1251,9 @@ const App = () => {
               className={`button button-secondary tool-item ${tool.id === activeTool ? 'active' : ''}`}
               onClick={() => setActiveTool(tool.id)}
               aria-current={tool.id === activeTool ? 'page' : undefined}
+              title={tool.description}
             >
               <span className="tool-item-label">{tool.label}</span>
-              {!tool.implemented && <span className="tool-item-badge">Coming soon</span>}
             </button>
           ))}
         </nav>
@@ -1581,7 +1264,15 @@ const App = () => {
         {activeTool === 'csv-records-to-lenex' && renderCsvRecordsTool()}
         {activeTool === 'lenex-entry-fee-calculator' && renderEntryFeeCalculatorTool()}
         {activeTool === 'lenex-to-meetsetup' && <MeetSetupTool />}
-        {activeTool !== 'unip-to-lenex' && activeTool !== 'csv-records-to-lenex' && activeTool !== 'lenex-entry-fee-calculator' && activeTool !== 'lenex-to-meetsetup' && renderUpcomingTool()}
+        <footer className="app-footer">
+          <h2>Source &amp; build</h2>
+          <p className="small-text">
+            Original source repository:{' '}
+            <a href={sourceRepositoryUrl} target="_blank" rel="noreferrer">{sourceRepositoryUrl}</a>
+          </p>
+          <p className="small-text">Build time (UTC): <strong>{buildTimeLabel}</strong></p>
+          <p className="small-text">Commit: <strong>{__APP_BUILD_COMMIT__}</strong></p>
+        </footer>
       </section>
     </main>
   );

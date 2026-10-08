@@ -6,6 +6,8 @@
     "moduleResolution": "Bundler",
     "skipLibCheck": true,
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noEmit": true,
     "jsx": "react-jsx",
     "types": ["vite/client"]
