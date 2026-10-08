@@ -254,6 +254,63 @@ body {
   width: 100%;
 }
 
+.meetsetup-tool {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-lg);
+  min-width: 0;
+}
+
+.meetsetup-group {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.meetsetup-group legend {
+  padding: 0;
+  margin-bottom: var(--space-lg);
+  font-weight: 600;
+}
+
+.meetsetup-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.meetsetup-fields .field-row {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  min-width: 0;
+}
+
+.meetsetup-fields .form-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.meetsetup-wide {
+  grid-column: 1 / -1;
+}
+
+.meetsetup-settings h2 {
+  margin-top: 0;
+}
+
+@media (max-width: 600px) {
+  .meetsetup-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #meetsetup-competitionTypeId {
+    font-size: 0.75rem;
+  }
+}
+
 .error {
   color: var(--color-danger);
 }

@@ -7,6 +7,7 @@ import { calculateLenexPaymentReport, createLenexPaymentReportCsv, createLenexPa
 import type { LenexPaymentReport } from './entryFeeCalculator';
 import { FORBIDDEN_REGISTRATION_ROUND_CODES } from './lenexConstants';
 import { parseLenexMeet } from './lenexParser';
+import MeetSetupTool from './MeetSetupTool';
 import {
   buildRecordLenexXml,
   createRecordListPreview,
@@ -44,7 +45,7 @@ const medleyRecordSources = [
   }
 ];
 
-type ToolId = 'unip-to-lenex' | 'csv-records-to-lenex' | 'lenex-entry-fee-calculator';
+type ToolId = 'unip-to-lenex' | 'csv-records-to-lenex' | 'lenex-entry-fee-calculator' | 'lenex-to-meetsetup';
 
 type ToolDefinition = {
   id: ToolId;
@@ -54,6 +55,12 @@ type ToolDefinition = {
 };
 
 const availableTools: ToolDefinition[] = [
+  {
+    id: 'lenex-to-meetsetup',
+    label: 'Lenex to meetsetup.xml',
+    description: 'Convert a Lenex meet definition to Victoria registration setup.',
+    implemented: true
+  },
   {
     id: 'unip-to-lenex',
     label: 'UNI_p to Lenex converter',
@@ -75,7 +82,7 @@ const availableTools: ToolDefinition[] = [
 ];
 
 const App = () => {
-  const [activeTool, setActiveTool] = useState<ToolId>('unip-to-lenex');
+  const [activeTool, setActiveTool] = useState<ToolId>('lenex-to-meetsetup');
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [detectedEncoding, setDetectedEncoding] = useState<string | null>(null);
@@ -1573,7 +1580,8 @@ const App = () => {
         {activeTool === 'unip-to-lenex' && renderUniPToLenexTool()}
         {activeTool === 'csv-records-to-lenex' && renderCsvRecordsTool()}
         {activeTool === 'lenex-entry-fee-calculator' && renderEntryFeeCalculatorTool()}
-        {activeTool !== 'unip-to-lenex' && activeTool !== 'csv-records-to-lenex' && activeTool !== 'lenex-entry-fee-calculator' && renderUpcomingTool()}
+        {activeTool === 'lenex-to-meetsetup' && <MeetSetupTool />}
+        {activeTool !== 'unip-to-lenex' && activeTool !== 'csv-records-to-lenex' && activeTool !== 'lenex-entry-fee-calculator' && activeTool !== 'lenex-to-meetsetup' && renderUpcomingTool()}
       </section>
     </main>
   );

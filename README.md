@@ -8,8 +8,9 @@ Current tools:
 - UNI_p to Lenex converter
 - CSV to Lenex records converter
 - Lenex entry fee calculator
+- Lenex to Victoria meetsetup.xml converter
 
-Use at your own risk, and manually verify generated Lenex files.
+Use at your own risk, and manually verify generated files before importing them.
 
 The tool is deployed to
 [GitHub Pages](https://hakostra.github.io/lenex-tools/).
@@ -214,6 +215,51 @@ Rules and calculation details:
 - Entry-based amounts are converted to whole currency by rounding.
 - If swimmer age is `<= X`, amount is overridden to `Y` regardless of entry count.
 - Report is grouped by club and shows swimmer name, birth year, amount, and club total.
+
+
+## Lenex to Victoria meetsetup.xml
+
+Upload a Lenex meet definition (`.lef`/`.xml`), enter the NSF meet ID, select
+the competition type, review registration settings and events, and download
+`meetsetup.xml`. The export uses actual ISO-8859-1 bytes, matching the Victoria
+examples. NSF meet IDs are preserved as text, including all leading zeroes.
+
+- Preliminary and timed-final events are included. Finals, semifinals,
+   quarterfinals, and swim-offs remain visible in the summary but are skipped.
+   All sessions are retained with their original IDs, including final-only sessions.
+- Each event's minimum age becomes its youngest allowed birth year. Merged age
+   groups are replaced by individual birth-year classes and senior eligibility.
+   "Oldest age junior" defaults to 18 and controls the junior/senior boundary.
+- Relay events use only the senior class and omit `Youngest` and `Oldest`.
+- Ordinary individual and relay fees are inferred from Lenex when uniform,
+   converting minor currency units to kr. Missing prices default to 100 kr for
+   individuals and 200 kr for relays; differing fees require manual input.
+   Late fees default to twice the ordinary fee (200/400 kr with the defaults)
+   and can be overridden.
+- The flat fee defaults to 100 kr for ages up to 10. Only eligible birth-year
+   classes are written to `OnePriceAllClasses`; it is empty for an 11+ meet.
+- The editable deadline defaults to Wednesday in the calendar week before the
+   earliest session, in `YYYY-MM-DD` format. Victoria's `FinalEntryDate` and
+   `LastEntryDate` fields use `YYYYMMDD`, as in the supplied examples.
+   `FirstEntryDate` is one calendar year before the deadline plus one day.
+   February 29 is clamped to February 28 in the previous year before adding a day.
+- Competition type IDs are 4 (national), 15 (regional), and 6 (unapproved).
+- Organizer, dated sessions, pool length, and available session times are
+   retained. Optional information such as websites, organization number, and
+   meet information is omitted. Missing start times are omitted.
+- The meet date range is written in Norwegian (for example, `22.-24. januar 2027`).
+   Lane numbering starts at 1, and the editable lane count defaults to 8.
+   `GeneralHC` is always `TRUE`.
+- Downloads are named `Meetsetup_<input basename>.xml`; for example,
+   `Events.lef` produces `Meetsetup_Events.xml`.
+
+The converter supports one meet, 25m/50m pools, and calendar-year ages.
+Unknown rounds, unsupported strokes, duplicate registration event numbers,
+missing minimum ages, and characters outside ISO-8859-1 prevent export rather
+than silently generating an ambiguous setup. Verify the file in the intended
+registration system before publishing the meet.
+
+Run the converter regression tests with `npm test`.
 
 
 ## Build and Deployment
