@@ -7,6 +7,7 @@ import type { LenexPaymentReport } from './entryFeeCalculator';
 import { FORBIDDEN_REGISTRATION_ROUND_CODES } from './lenexConstants';
 import { parseLenexMeet } from './lenexParser';
 import MeetSetupTool from './MeetSetupTool';
+import PrizesEstimatorTool from './PrizesEstimatorTool';
 import FileUpload, { acceptedLenexFileTypes } from './FileUpload';
 import {
   buildRecordLenexXml,
@@ -44,7 +45,7 @@ const medleyRecordSources = [
   }
 ];
 
-type ToolId = 'unip-to-lenex' | 'csv-records-to-lenex' | 'lenex-entry-fee-calculator' | 'lenex-to-meetsetup';
+type ToolId = 'unip-to-lenex' | 'csv-records-to-lenex' | 'lenex-entry-fee-calculator' | 'lenex-to-meetsetup' | 'prizes-estimator';
 
 type ToolDefinition = {
   id: ToolId;
@@ -72,6 +73,11 @@ const availableTools: ToolDefinition[] = [
     id: 'lenex-entry-fee-calculator',
     label: 'Lenex entry fee calculator',
     description: 'Read Lenex entries and calculate per-swimmer and per-club payment totals.'
+  },
+  {
+    id: 'prizes-estimator',
+    label: 'Prizes estimator',
+    description: 'Estimate individual prizes by placing and relay medals from Lenex entries.'
   }
 ];
 
@@ -1264,6 +1270,7 @@ const App = () => {
         {activeTool === 'csv-records-to-lenex' && renderCsvRecordsTool()}
         {activeTool === 'lenex-entry-fee-calculator' && renderEntryFeeCalculatorTool()}
         {activeTool === 'lenex-to-meetsetup' && <MeetSetupTool />}
+        {activeTool === 'prizes-estimator' && <PrizesEstimatorTool />}
         <footer className="app-footer">
           <h2>Source &amp; build</h2>
           <p className="small-text">

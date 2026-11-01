@@ -9,12 +9,50 @@ Current tools:
 - CSV to Lenex records converter
 - Lenex entry fee calculator
 - Lenex to Victoria meetsetup.xml converter
+- Prizes estimator
 
 Use at your own risk, and manually verify generated files before importing them.
 
 The tool is deployed to
 [GitHub Pages](https://hakostra.github.io/lenex-tools/).
 
+
+## Prizes estimator
+
+Upload a Lenex entries file (.lef/.xml). The estimate assumes every registered
+swimmer and relay team starts.
+
+Individual prizes go to the top one third in each event and age group, rounded
+up. Only swimmers at or above the minimum prize age (default 11) are eligible;
+younger swimmers remain in participant counts but do not contribute to placing
+prize totals. Totals are listed separately for 1st prize, 2nd prize, and every higher
+placing needed. Age groups use the meet's age reference date (calendar-year
+ages for `YEAR`, completed ages for `DATE`).
+
+`Use para class` is checked by default. Swimmers with a positive Lenex
+`HANDICAP` classification compete in one separate **Para** category per
+individual event, rather than their ordinary age group. The same minimum age
+and one-third rounding rule apply. Para prizes are included in the placing
+totals, with their subtotal also shown in the overview. Unchecking the option
+returns these swimmers to ordinary age groups. Participation prizes and relay
+medals are unaffected.
+
+Participation prizes are counted separately: one per registered swimmer up to
+and including the maximum participation age (default 12), not one per event.
+The limits are independent, so swimmers aged 11 and 12 can receive both types
+of prize with the defaults. Both age settings recalculate the uploaded meet
+immediately. Swimmers without entries and swimmers whose age cannot be
+determined are excluded from the participation total.
+
+Relay medals are separate: gold, silver, and bronze go to the top three teams
+in each event and age group, with one medal per swimmer on each awarded team.
+Fewer than three teams means fewer awarded places. Relay entries with multiple
+possible age groups require an explicit age-group ID; unresolved entries are
+flagged and excluded. Events without age groups use one open group.
+
+The event summary lists participants (swimmers or teams), individual prizes,
+relay medals, and unassigned entries. Ties, withdrawals, and disqualifications
+are not predicted.
 
 ## UNI_p to Lenex converter
 

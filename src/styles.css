@@ -54,7 +54,8 @@ body {
 }
 
 .tool-content,
-.meetsetup-tool {
+.meetsetup-tool,
+.prizes-tool {
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -195,6 +196,10 @@ body {
 
 .file-summary {
   margin-top: var(--space-lg);
+}
+
+.prizes-tool .file-summary {
+  overflow-wrap: anywhere;
 }
 
 .field-row {
