@@ -8,6 +8,7 @@ import { FORBIDDEN_REGISTRATION_ROUND_CODES } from './lenexConstants';
 import { parseLenexMeet } from './lenexParser';
 import MeetSetupTool from './MeetSetupTool';
 import PrizesEstimatorTool from './PrizesEstimatorTool';
+import HeatCardsTool from './HeatCardsTool';
 import FileUpload, { acceptedLenexFileTypes } from './FileUpload';
 import {
   buildRecordLenexXml,
@@ -45,7 +46,7 @@ const medleyRecordSources = [
   }
 ];
 
-type ToolId = 'unip-to-lenex' | 'csv-records-to-lenex' | 'lenex-entry-fee-calculator' | 'lenex-to-meetsetup' | 'prizes-estimator';
+type ToolId = 'unip-to-lenex' | 'csv-records-to-lenex' | 'lenex-entry-fee-calculator' | 'lenex-to-meetsetup' | 'prizes-estimator' | 'heat-cards';
 
 type ToolDefinition = {
   id: ToolId;
@@ -78,6 +79,11 @@ const availableTools: ToolDefinition[] = [
     id: 'prizes-estimator',
     label: 'Prizes estimator',
     description: 'Estimate individual prizes by placing and relay medals from Lenex entries.'
+  },
+  {
+    id: 'heat-cards',
+    label: 'Heat cards',
+    description: 'Print swimmer cards with seeded heats as a PDF, 2 x 4 per A4 page.'
   }
 ];
 
@@ -1271,6 +1277,7 @@ const App = () => {
         {activeTool === 'lenex-entry-fee-calculator' && renderEntryFeeCalculatorTool()}
         {activeTool === 'lenex-to-meetsetup' && <MeetSetupTool />}
         {activeTool === 'prizes-estimator' && <PrizesEstimatorTool />}
+        {activeTool === 'heat-cards' && <HeatCardsTool />}
         <footer className="app-footer">
           <h2>Source &amp; build</h2>
           <p className="small-text">
