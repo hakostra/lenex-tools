@@ -121,15 +121,17 @@ export const selectHeatCards = (data: HeatCardData, sessionKeys: ReadonlySet<str
     .sort((a, b) => a.club.localeCompare(b.club, 'nb') || a.sortName.localeCompare(b.sortName, 'nb'));
 
 // Layout constants in PDF points (A4 portrait, 2 x 4 cards).
+// Cards tile the whole page: cutting along the interior lines leaves every card with centered content.
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
-const MARGIN = 20;
 const COLUMNS = 2;
 const ROWS = 4;
-const CARD_WIDTH = (PAGE_WIDTH - 2 * MARGIN) / COLUMNS;
-const CARD_HEIGHT = (PAGE_HEIGHT - 2 * MARGIN) / ROWS;
-const PADDING = 12;
+const CARD_WIDTH = PAGE_WIDTH / COLUMNS;
+const CARD_HEIGHT = PAGE_HEIGHT / ROWS;
+const PADDING = 16;
 const MARK_LENGTH = 8;
+const EDGE_MARK_INSET = 12;
+const EDGE_MARK_LENGTH = 10;
 const ROW_HEIGHT = 13;
 const ROW_FONT_SIZE = 10;
 
@@ -186,21 +188,26 @@ export const createHeatCardsPdf = (data: HeatCardData, swimmers: HeatCardSwimmer
 
   for (const pageCards of paginateCards(data, swimmers)) {
     pdf.addPage();
-    // Marks start at each grid intersection and point along the cut lines: cross inside, tee on edges, angle in corners.
-    for (let column = 0; column <= COLUMNS; column++) {
-      for (let row = 0; row <= ROWS; row++) {
-        const x = MARGIN + column * CARD_WIDTH;
-        const y = MARGIN + row * CARD_HEIGHT;
-        if (column > 0) pdf.line(x - MARK_LENGTH, y, x, y);
-        if (column < COLUMNS) pdf.line(x, y, x + MARK_LENGTH, y);
-        if (row > 0) pdf.line(x, y - MARK_LENGTH, x, y);
-        if (row < ROWS) pdf.line(x, y, x, y + MARK_LENGTH);
+    // Crosses where four cards meet; short marks at the paper edges show where each cut starts and ends.
+    for (let column = 1; column < COLUMNS; column++) {
+      const x = column * CARD_WIDTH;
+      for (let row = 1; row < ROWS; row++) {
+        const y = PAGE_HEIGHT - row * CARD_HEIGHT;
+        pdf.line(x - MARK_LENGTH, y, x + MARK_LENGTH, y);
+        pdf.line(x, y - MARK_LENGTH, x, y + MARK_LENGTH);
       }
+      pdf.line(x, EDGE_MARK_INSET, x, EDGE_MARK_INSET + EDGE_MARK_LENGTH);
+      pdf.line(x, PAGE_HEIGHT - EDGE_MARK_INSET - EDGE_MARK_LENGTH, x, PAGE_HEIGHT - EDGE_MARK_INSET);
+    }
+    for (let row = 1; row < ROWS; row++) {
+      const y = PAGE_HEIGHT - row * CARD_HEIGHT;
+      pdf.line(EDGE_MARK_INSET, y, EDGE_MARK_INSET + EDGE_MARK_LENGTH, y);
+      pdf.line(PAGE_WIDTH - EDGE_MARK_INSET - EDGE_MARK_LENGTH, y, PAGE_WIDTH - EDGE_MARK_INSET, y);
     }
 
     for (const [index, card] of pageCards.entries()) {
-      const left = MARGIN + (index % COLUMNS) * CARD_WIDTH + PADDING;
-      const top = PAGE_HEIGHT - MARGIN - Math.floor(index / COLUMNS) * CARD_HEIGHT;
+      const left = (index % COLUMNS) * CARD_WIDTH + PADDING;
+      const top = PAGE_HEIGHT - Math.floor(index / COLUMNS) * CARD_HEIGHT;
       const innerWidth = CARD_WIDTH - 2 * PADDING;
       const right = left + innerWidth;
 
@@ -234,7 +241,7 @@ export const createHeatCardsPdf = (data: HeatCardData, swimmers: HeatCardSwimmer
         .map((key) => sessions.get(key))
         .map((session) => session?.name || `Session ${session?.number ?? ''}`.trim());
       const footer = [data.meetName, footerSessions.join(', ')].filter(Boolean).join(': ');
-      pdf.text(left, top - CARD_HEIGHT + PADDING - 2, fitText(footer, 'regular', 7, innerWidth), 'regular', 7);
+      pdf.text(left, top - CARD_HEIGHT + PADDING, fitText(footer, 'regular', 7, innerWidth), 'regular', 7);
     }
   }
 
