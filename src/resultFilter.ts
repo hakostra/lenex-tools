@@ -206,8 +206,8 @@ const escapeCsvField = (value: string): string => (/[,"\n\r]/.test(value) ? `"${
 
 export const resultFilterColumns = ['Rank', 'Name', 'Born', 'Club', 'Age group', 'Time', 'Status'];
 
-export const createResultFilterCsv = (report: ResultFilterReport): string => {
-  const lines: string[] = [];
+export const createResultFilterCsv = (report: ResultFilterReport, meetName: string): string => {
+  const lines: string[] = [escapeCsvField(meetName), ','.repeat(resultFilterColumns.length - 1)];
   for (const [index, { event, rows }] of report.blocks.entries()) {
     if (index > 0) lines.push('');
     lines.push([`Event ${event.number}`, event.name].map(escapeCsvField).join(','));

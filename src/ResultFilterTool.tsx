@@ -42,7 +42,7 @@ const ResultFilterTool = () => {
 
   const onDownload = () => {
     if (!data || !report || report.rowCount === 0) return;
-    const csv = createResultFilterCsv(report);
+    const csv = createResultFilterCsv(report, data.meetName);
     const baseName = [data.meetName, club || 'all-clubs', 'results'].map(sanitizeFileName).filter(Boolean).join('-');
     downloadFile(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }), `${baseName}.csv`);
   };
