@@ -337,6 +337,14 @@ table {
   border-collapse: collapse;
 }
 
+.event-caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+}
+
 .payment-summary-table {
   table-layout: fixed;
 }

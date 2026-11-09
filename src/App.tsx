@@ -9,6 +9,7 @@ import { parseLenexMeet } from './lenexParser';
 import MeetSetupTool from './MeetSetupTool';
 import PrizesEstimatorTool from './PrizesEstimatorTool';
 import HeatCardsTool from './HeatCardsTool';
+import ResultFilterTool from './ResultFilterTool';
 import FileUpload, { acceptedLenexFileTypes } from './FileUpload';
 import {
   buildRecordLenexXml,
@@ -46,7 +47,7 @@ const medleyRecordSources = [
   }
 ];
 
-type ToolId = 'unip-to-lenex' | 'csv-records-to-lenex' | 'lenex-entry-fee-calculator' | 'lenex-to-meetsetup' | 'prizes-estimator' | 'heat-cards';
+type ToolId = 'unip-to-lenex' | 'csv-records-to-lenex' | 'lenex-entry-fee-calculator' | 'lenex-to-meetsetup' | 'prizes-estimator' | 'heat-cards' | 'result-filter';
 
 type ToolDefinition = {
   id: ToolId;
@@ -84,6 +85,11 @@ const availableTools: ToolDefinition[] = [
     id: 'heat-cards',
     label: 'Heat cards',
     description: 'Print swimmer cards with seeded heats as a PDF, 2 x 4 per A4 page.'
+  },
+  {
+    id: 'result-filter',
+    label: 'Result filter',
+    description: 'Filter a Lenex result file by club and minimum age and export the results as CSV.'
   }
 ];
 
@@ -1278,6 +1284,7 @@ const App = () => {
         {activeTool === 'lenex-to-meetsetup' && <MeetSetupTool />}
         {activeTool === 'prizes-estimator' && <PrizesEstimatorTool />}
         {activeTool === 'heat-cards' && <HeatCardsTool />}
+        {activeTool === 'result-filter' && <ResultFilterTool />}
         <footer className="app-footer">
           <h2>Source &amp; build</h2>
           <p className="small-text">
